@@ -5,13 +5,13 @@ import {
   Alert,
   Linking,
   Modal,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { govBrPublicLoginUrl } from '../constants/auth';
 import { appDocuments } from '../constants/documents';
@@ -21,8 +21,17 @@ type BrowserNotice = {
   url: string;
 };
 
-const openExternalLink = (url: string) => {
-  Linking.openURL(url);
+const openExternalLink = async (url: string) => {
+  try {
+    const canOpen = await Linking.canOpenURL(url);
+    if (canOpen) {
+      await Linking.openURL(url);
+    } else {
+      Alert.alert('Erro', 'Não foi possível abrir o link informado.');
+    }
+  } catch (error) {
+    Alert.alert('Erro', 'Ocorreu um problema ao tentar abrir o endereço externo.');
+  }
 };
 
 const openInApp = (title: string, url: string) => {
@@ -32,10 +41,10 @@ const openInApp = (title: string, url: string) => {
   });
 };
 
-const openDocument = (documentId: string) => {
+const openDocument = (documentId: string, title?: string) => {
   router.push({
     pathname: '/webview',
-    params: { documentId },
+    params: { documentId, title: title || 'Visualização do Documento' },
   });
 };
 
@@ -46,22 +55,22 @@ export default function LoginScreen() {
   const handleGovBrLogin = async () => {
     setLoading(true);
 
-    const canOpen = await Linking.canOpenURL(govBrPublicLoginUrl);
-
-    setLoading(false);
-
-    if (!canOpen) {
-      Alert.alert('Login gov.br', 'Não foi possível abrir o site do gov.br.');
-      return;
+    try {
+      const canOpen = await Linking.canOpenURL(govBrPublicLoginUrl);
+      if (!canOpen) {
+        Alert.alert('Login gov.br', 'Não foi possível abrir o site do gov.br.');
+        return;
+      }
+      await openExternalLink(govBrPublicLoginUrl);
+    } catch (error) {
+      Alert.alert('Login gov.br', 'Ocorreu uma falha ao abrir a página de login.');
+    } finally {
+      setLoading(false);
     }
-
-    openExternalLink(govBrPublicLoginUrl);
   };
 
   const confirmExternalLink = () => {
-    if (!browserNotice) {
-      return;
-    }
+    if (!browserNotice) return;
 
     const url = browserNotice.url;
     setBrowserNotice(null);
@@ -70,7 +79,7 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView>
+      <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <Text style={styles.govLogo}>gov.br</Text>
           <Text style={styles.topBarText}>Governo Federal</Text>
@@ -92,6 +101,7 @@ export default function LoginScreen() {
             </Text>
 
             <TouchableOpacity
+              accessibilityRole="button"
               activeOpacity={0.85}
               disabled={loading}
               onPress={handleGovBrLogin}
@@ -103,7 +113,10 @@ export default function LoginScreen() {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.secondaryButton}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() => router.replace('/(tabs)')}
+              style={styles.secondaryButton}>
               <Text style={styles.secondaryText}>Já entrei no gov.br</Text>
             </TouchableOpacity>
           </View>
@@ -112,12 +125,14 @@ export default function LoginScreen() {
 
           <View style={styles.gridFacilidades}>
             <TouchableOpacity
+              accessibilityRole="button"
               style={styles.cardPequeno}
               onPress={() => openInApp('BP On-line', 'https://www.marinha.mil.br/papem/node/207')}>
               <Text style={styles.cardTexto}>BP On-line</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
+              accessibilityRole="button"
               style={styles.cardPequeno}
               onPress={() => setBrowserNotice({ title: 'BONO Digital', url: 'https://bono.marinha.mil.br/internet' })}>
               <Text style={styles.cardTexto}>BONO Digital</Text>
@@ -125,9 +140,10 @@ export default function LoginScreen() {
 
             {appDocuments.map((document) => (
               <TouchableOpacity
+                accessibilityRole="button"
                 key={document.id}
                 style={styles.cardPequeno}
-                onPress={() => openDocument(document.id)}>
+                onPress={() => openDocument(document.id, document.title)}>
                 <Text style={styles.cardTexto}>{document.title}</Text>
               </TouchableOpacity>
             ))}
@@ -142,11 +158,17 @@ export default function LoginScreen() {
             <Text style={styles.modalText}>Você será direcionado para o navegador.</Text>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setBrowserNotice(null)}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                style={styles.cancelButton}
+                onPress={() => setBrowserNotice(null)}>
                 <Text style={styles.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.continueButton} onPress={confirmExternalLink}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                style={styles.continueButton}
+                onPress={confirmExternalLink}>
                 <Text style={styles.continueButtonText}>Continuar</Text>
               </TouchableOpacity>
             </View>

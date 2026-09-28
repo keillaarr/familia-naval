@@ -75,7 +75,7 @@ export default function WebViewScreen() {
                 Este conteúdo não permite exibição incorporada no navegador. No aplicativo para celular, ele abre dentro do app.
               </Text>
               <TouchableOpacity style={styles.openButton} onPress={() => Linking.openURL(pageUrl)}>
-                <Text style={styles.openButtonText}>Abrir documento</Text>
+                <Text style={styles.openButtonText}>Abrir</Text>
               </TouchableOpacity>
             </View>
           )}

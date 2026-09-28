@@ -1,4 +1,4 @@
-package com.familianaval.api.module.inspSaude;
+package com.familianaval.api.module.inspsaude.model;
 
 import java.time.LocalDate;
 
@@ -12,7 +12,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
 
 @Getter
 @Setter
@@ -45,11 +44,42 @@ public class InspSaude {
     @Column(name = "quadroesp")
     private String quadroEsp;
 
+    @Column(name = "endereco")
+    private String endereco;
+
+    @Column(name = "numero")
+    private Integer numero;
+
+    @Column(name = "complemento")
+    private String complemento;
+
+    @Column(name = "bairro")
+    private String bairro;
+
+    @Column(name = "estado")
+    private String estado;
+
+    @Column(name = "cep")
+    private Integer cep;
+
+    @Column(name = "tel")
+    private Integer tel;
+
+    @Column(name = "cel", length = 11)
+    private String cel;
+
     @Column(name = "email")
     private String email;
+
+    @Column(name = "beneficios")
+    private String beneficios;
 
     @Column(name = "leu")
     private Boolean leu;
 
-    // Getters e Setters
+    @Column(name = "recebercomunicacao")
+    private String receberComunicacao;
+
+    @Column(name = "cidade")
+    private String cidade;
 }

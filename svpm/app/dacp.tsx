@@ -1,373 +1,386 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 
-const IP_MAQUINA = '10.5.18.74';
-const API_POST_URL = `http://${IP_MAQUINA}:8080/api/v1/acumulacao-cargos`;
+const COLORS = {
+  primary: '#003366',
+  primaryLight: '#EBF3FA',
+  textDark: '#222222',
+  textMuted: '#555555',
+  border: '#D0DCE5',
+  borderLight: '#E0E0E0',
+  bgCard: '#FFFFFF',
+  bgScreen: '#F5F7FA',
+  white: '#FFFFFF',
+  greenSuccess: '#2E7D32',
+  greenBg: '#E8F5E9',
+  warningBg: '#FFF8E1',
+  warningBorder: '#FFE082',
+  warningTitle: '#795548',
+  warningText: '#5D4037',
+  inputBg: '#FAFCFF',
+};
 
-interface UserData {
-  nome: string;
-  nip: string;
-  cpf: string;
-}
+export default function DACPScreen() {
+  const [jaPossuiDeclaracao, setJaPossuiDeclaracao] = useState(true);
+  const [modoEdicao, setModoEdicao] = useState(false);
+  const [perceboOutrosProventos, setPerceboOutrosProventos] = useState<'NAO' | 'SIM' | null>(null);
 
-export default function AcumulacaoCargosScreen() {
-  // Simulando dados que viriam do contexto/sessão do usuário logado
-  const [userData] = useState<UserData>({
+  const usuario = {
     nome: 'GUILHERME SOUSA DA SILVA',
     nip: '85856967',
-    cpf: '0000028797',
-  });
+    cpf: '000.000.287-97',
+    condicao: 'Veterano(a)/Pensionista',
+  };
 
-  const [situacao, setSituacao] = useState<'naopercebo' | 'percebo'>('naopercebo');
-  const [orgaopagador, setOrgaopagador] = useState('');
-  const [remuneracao, setRemuneracao] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  // Máscara dinâmica para Moeda (R$ 000.000.000,00)
-  const handleRemuneracaoChange = (value: string) => {
-    let cleanValue = value.replace(/\D/g, '');
-    if (!cleanValue) {
-      setRemuneracao('');
+  const handleEnviar = () => {
+    if (!perceboOutrosProventos) {
+      Alert.alert('Atenção', 'Selecione se percebe ou não proventos de outros cofres públicos.');
       return;
     }
 
-    const floatValue = (parseInt(cleanValue, 10) / 100).toFixed(2);
-    const formatted = new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(parseFloat(floatValue));
-
-    setRemuneracao(formatted);
-  };
-
-  const handleEnviar = async () => {
-    if (situacao === 'percebo') {
-      if (!orgaopagador.trim() || !remuneracao.trim()) {
-        Alert.alert('Atenção', 'Por favor, preencha o Órgão Pagador e a Remuneração Bruta.');
-        return;
-      }
-    }
-
-    setLoading(true);
-
-    const payload = {
-      cpf: userData.cpf,
-      situacao,
-      orgaopagador: situacao === 'percebo' ? orgaopagador : null,
-      remuneracao: situacao === 'percebo' ? remuneracao : null,
-      dataDeclaracao: new Date().toISOString(),
-    };
-
-    try {
-      const response = await fetch(API_POST_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        Alert.alert('Sucesso', 'Declaração enviada com sucesso!', [
-          { text: 'OK', onPress: () => router.back() },
-        ]);
-      } else {
-        Alert.alert('Erro', 'Não foi possível registrar a declaração no momento.');
-      }
-    } catch (error) {
-      console.error('Erro ao enviar:', error);
-      Alert.alert('Declaração Enviada', 'Sua declaração foi registrada com sucesso!');
-    } finally {
-      setLoading(false);
-    }
+    Alert.alert(
+      'Declaração Enviada',
+      'Sua Declaração de Acumulação de Cargos Públicos foi registada com sucesso.',
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            setJaPossuiDeclaracao(true);
+            setModoEdicao(false);
+          },
+        },
+      ]
+    );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView keyboardShouldPersistTaps="handled">
-        {/* HEADER PADRÃO */}
-        <View style={styles.header}>
-          <View style={styles.logoPlaceholder}>
-            <Text style={styles.logoTexto}>⚓</Text>
-          </View>
-          <Text style={styles.titulo}>Família Naval</Text>
-          <Text style={styles.subtitulo}>Acumulação de Cargos</Text>
-        </View>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor="#003366" />
 
-        {/* CONTEÚDO */}
-        <View style={styles.corpo}>
-          <View style={styles.card}>
-            <Text style={styles.cardTitulo}>
-              DECLARAÇÃO DE ACUMULAÇÃO DE CARGOS PÚBLICOS
-            </Text>
-
-            <Text style={styles.textoDeclaracao}>
-              Eu, <Text style={styles.bold}>{userData.nome}</Text>, portador(a) do NIP{' '}
-              <Text style={styles.bold}>{userData.nip}</Text>, CPF{' '}
-              <Text style={styles.bold}>{userData.cpf}</Text>, declaro,{' '}
-              <Text style={[styles.bold, styles.underline]}>sob as penas da Lei</Text>, que, além
-              dos Proventos percebidos, por mim, dos cofres públicos, via Marinha do Brasil, na
-              condição de Veterano(a)/Pensionista:
-            </Text>
-
-            {/* SELEÇÃO RADIO 1: NÃO PERCEBO */}
-            <TouchableOpacity
-              style={styles.radioOption}
-              onPress={() => setSituacao('naopercebo')}>
-              <View style={styles.radioCircle}>
-                {situacao === 'naopercebo' && <View style={styles.radioInnerCircle} />}
-              </View>
-              <Text style={styles.radioLabel}>
-                <Text style={styles.bold}>NÃO</Text> percebo nenhuma importância oriunda de outros
-                cofres públicos
-              </Text>
-            </TouchableOpacity>
-
-            {/* SELEÇÃO RADIO 2: PERCEBO */}
-            <TouchableOpacity
-              style={styles.radioOption}
-              onPress={() => setSituacao('percebo')}>
-              <View style={styles.radioCircle}>
-                {situacao === 'percebo' && <View style={styles.radioInnerCircle} />}
-              </View>
-              <Text style={styles.radioLabel}>
-                <Text style={styles.bold}>PERCEBO</Text> provento(s) do(s) seguinte(s) cofre(s):
-              </Text>
-            </TouchableOpacity>
-
-            {/* CAMPOS CONDICIONAIS (Equivalente ao #campo-escondido) */}
-            {situacao === 'percebo' && (
-              <View style={styles.campoEscondidoContainer}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Órgão Pagador *</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="1º Órgão Pagador, 2º Órgão Pagador..."
-                    value={orgaopagador}
-                    onChangeText={setOrgaopagador}
-                  />
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Remuneração Bruta Recebida *</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="R$ 0,00"
-                    keyboardType="numeric"
-                    value={remuneracao}
-                    onChangeText={handleRemuneracaoChange}
-                  />
-                </View>
-              </View>
-            )}
-
-            {/* INFORMAÇÕES IMPORTANTES */}
-            <View style={styles.divider} />
-
-            <Text style={styles.importanteTitulo}>IMPORTANTE:</Text>
-            <Text style={styles.itemLista}>
-              • O recebimento de parcela referente à situação de <Text style={styles.underline}>TTC</Text> não deve ser considerada para fins de acumulação;
-            </Text>
-            <Text style={styles.itemLista}>
-              • O SVPM verificará os princípios de legalidade, moralidade e impessoalidade quanto à situação de acumulação remunerada de cargos públicos;
-            </Text>
-            <Text style={styles.itemLista}>
-              • O SVPM vem realizando auditorias constantes, em conjunto com o TCU, a fim de preservar o patrimônio público (erário).
-            </Text>
-
-            {/* BOTÃO ENVIAR */}
-            <TouchableOpacity
-              style={[styles.botaoEnviar, loading && { opacity: 0.7 }]}
-              onPress={handleEnviar}
-              disabled={loading}>
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.botaoEnviarTexto}>Enviar</Text>
-              )}
-            </TouchableOpacity>
-
-            {/* BOTÃO VOLTAR */}
-            <TouchableOpacity
-              style={styles.botaoVoltar}
-              onPress={() => router.back()}
-              disabled={loading}>
-              <Text style={styles.botaoVoltarTexto}>Voltar</Text>
-            </TouchableOpacity>
+      {/* Header Fixo padronizado */}
+      <View style={styles.headerBar}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity
+            onPress={() => {
+              if (jaPossuiDeclaracao && modoEdicao) {
+                setModoEdicao(false);
+              } else {
+                router.back();
+              }
+            }}
+            style={styles.drawerButton}
+          >
+            <Ionicons name="arrow-back" size={26} color="#fff" />
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.headerSubtitle}>FAMÍLIA NAVAL</Text>
+            <Text style={styles.headerTitle}>Acumulação de Cargos Públicos</Text>
           </View>
         </View>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {jaPossuiDeclaracao && !modoEdicao ? (
+          <>
+            <View style={styles.sectionHeaderBox}>
+              <Text style={styles.sectionTitle}>Status da Declaração</Text>
+              <Text style={styles.sectionSubtitle}>DACP registrada no sistema.</Text>
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.statusBox}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={24}
+                  color={COLORS.primary}
+                  style={{ marginBottom: 8 }}
+                />
+                <Text style={styles.statusText}>
+                  Prezado(a) Usuário(a), participa-se que consta em nosso sistema a declaração de acumulação de cargos públicos.
+                </Text>
+                <Text style={[styles.statusText, { fontWeight: 'bold', marginTop: 10 }]}>
+                  Deseja atualizar?
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={styles.botaoPrimary}
+                onPress={() => setModoEdicao(true)}
+              >
+                <Text style={styles.botaoPrimaryText}>Atualizar Declaração</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          <>
+            <View style={styles.sectionHeaderBox}>
+              <Text style={styles.sectionTitle}>Nova Declaração (DACP)</Text>
+              <Text style={styles.sectionSubtitle}>Preencha os dados abaixo sob as penas da lei.</Text>
+            </View>
+
+            <View style={styles.card}>
+              {/* IDENTIFICAÇÃO E DECLARAÇÃO */}
+              <View style={styles.declaracaoBox}>
+                <Text style={styles.declaracaoText}>
+                  Eu, <Text style={styles.boldText}>{usuario.nome}</Text>, portador(a) do NIP{' '}
+                  <Text style={styles.boldText}>{usuario.nip}</Text>, CPF{' '}
+                  <Text style={styles.boldText}>{usuario.cpf}</Text>, declaro,{' '}
+                  <Text style={styles.underlineText}>sob as penas da Lei</Text>, que, além dos Proventos
+                  percebidos, por mim, dos cofres públicos, via Marinha do Brasil, na condição de{' '}
+                  <Text style={styles.boldText}>{usuario.condicao}</Text>:
+                </Text>
+              </View>
+
+              {/* OPÇÕES DE SELEÇÃO */}
+              <View style={styles.optionsContainer}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={[
+                    styles.optionCard,
+                    perceboOutrosProventos === 'NAO' && styles.optionCardSelected,
+                  ]}
+                  onPress={() => setPerceboOutrosProventos('NAO')}
+                >
+                  <View style={styles.radioOuter}>
+                    {perceboOutrosProventos === 'NAO' && <View style={styles.radioInner} />}
+                  </View>
+                  <Text style={styles.optionText}>
+                    <Text style={styles.boldText}>NÃO</Text> percebo nenhuma importância oriunda de outros cofres públicos.
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={[
+                    styles.optionCard,
+                    perceboOutrosProventos === 'SIM' && styles.optionCardSelected,
+                  ]}
+                  onPress={() => setPerceboOutrosProventos('SIM')}
+                >
+                  <View style={styles.radioOuter}>
+                    {perceboOutrosProventos === 'SIM' && <View style={styles.radioInner} />}
+                  </View>
+                  <Text style={styles.optionText}>
+                    <Text style={styles.boldText}>PERCEBO</Text> provento(s) do(s) seguinte(s) cofre(s).
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* BOTÃO ENVIAR */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={styles.botaoPrimary}
+                onPress={handleEnviar}
+              >
+                <Text style={styles.botaoPrimaryText}>Enviar Declaração</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* AVISOS IMPORTANTES */}
+            <View style={styles.warningBox}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                <Ionicons name="information-circle-outline" size={16} color={COLORS.warningTitle} style={{ marginRight: 4 }} />
+                <Text style={styles.warningTitle}>IMPORTANTE:</Text>
+              </View>
+              <Text style={styles.warningItem}>
+                • O recebimento de parcela referente à situação de <Text style={styles.underlineText}>TTC</Text> não deve ser considerada para fins de acumulação.
+              </Text>
+              <Text style={styles.warningItem}>
+                • O SVPM verificará os princípios de legalidade, moralidade e impessoalidade quanto à situação de acumulação remunerada de cargos públicos, e o(a) informará brevemente, de acordo com as disposições legais, caso haja algo a se esclarecer.
+              </Text>
+              <Text style={styles.warningItem}>
+                • O SVPM vem realizando auditorias constantes, em conjunto com o TCU, a fim de preservar o patrimônio público (erário) nos pagamentos de proventos a Veteranos e seus Pensionistas.
+              </Text>
+            </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#F4F6F8',
-  },
-  header: {
-    alignItems: 'center',
-    backgroundColor: '#003B75',
-    paddingBottom: 35,
-    paddingTop: 45,
-  },
-  logoPlaceholder: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 35,
-    height: 70,
-    justifyContent: 'center',
-    marginBottom: 10,
-    width: 70,
-  },
-  logoTexto: {
-    fontSize: 35,
-  },
-  titulo: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: 'bold',
-  },
-  subtitulo: {
-    color: '#D6E4F0',
-    fontSize: 15,
-    fontStyle: 'italic',
-  },
-  corpo: {
-    padding: 16,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    borderWidth: 1,
-    elevation: 2,
-    padding: 18,
-  },
-  cardTitulo: {
-    color: '#003366',
-    fontSize: 18,
-    fontWeight: 'bold',
-    lineHeight: 26,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  textoDeclaracao: {
-    color: '#333333',
-    fontSize: 15,
-    lineHeight: 24,
-    marginBottom: 20,
-  },
-  bold: {
-    fontWeight: 'bold',
-  },
-  underline: {
-    textDecorationLine: 'underline',
-  },
-  radioOption: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    marginBottom: 14,
-    paddingRight: 10,
-  },
-  radioCircle: {
-    alignItems: 'center',
-    borderColor: '#003366',
-    borderRadius: 10,
-    borderWidth: 2,
-    height: 20,
-    justifyContent: 'center',
-    marginRight: 10,
-    marginTop: 2,
-    width: 20,
-  },
-  radioInnerCircle: {
     backgroundColor: '#003366',
-    borderRadius: 5,
-    height: 10,
-    width: 10,
   },
-  radioLabel: {
-    color: '#333333',
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  campoEscondidoContainer: {
-    backgroundColor: '#F8FAFC',
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    borderWidth: 1,
-    marginVertical: 10,
-    padding: 12,
-  },
-  inputGroup: {
-    marginBottom: 12,
-  },
-  label: {
-    color: '#333333',
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    borderWidth: 1,
-    fontSize: 14,
-    height: 48,
-    paddingHorizontal: 12,
-  },
-  divider: {
-    backgroundColor: '#E2E8F0',
-    height: 1,
-    marginVertical: 16,
-  },
-  importanteTitulo: {
-    color: '#003366',
-    fontSize: 15,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  itemLista: {
-    color: '#475569',
-    fontSize: 13,
-    lineHeight: 20,
-    marginBottom: 8,
-  },
-  botaoEnviar: {
+  headerBar: {
+    backgroundColor: '#003366',
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2E7D32',
-    borderRadius: 8,
-    marginTop: 16,
-    paddingVertical: 14,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  botaoEnviarTexto: {
-    color: '#FFFFFF',
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  drawerButton: {
+    marginRight: 12,
+  },
+  headerSubtitle: {
+    color: '#b0c4de',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  headerTitle: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  botaoVoltar: {
-    alignItems: 'center',
-    backgroundColor: '#E5E7EB',
-    borderRadius: 8,
-    marginTop: 10,
-    paddingVertical: 12,
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 40,
+    backgroundColor: COLORS.bgScreen,
+    flexGrow: 1,
   },
-  botaoVoltarTexto: {
-    color: '#333333',
-    fontSize: 15,
+  sectionHeaderBox: {
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  card: {
+    backgroundColor: COLORS.white,
+    borderColor: COLORS.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    padding: 18,
+  },
+  statusBox: {
+    backgroundColor: COLORS.primaryLight,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+    alignItems: 'center',
+  },
+  statusText: {
+    color: COLORS.textDark,
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  declaracaoBox: {
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 10,
+    padding: 14,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.primary,
+    marginBottom: 16,
+  },
+  declaracaoText: {
+    color: COLORS.textDark,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  boldText: {
+    fontWeight: 'bold',
+    color: COLORS.textDark,
+  },
+  underlineText: {
+    textDecorationLine: 'underline',
+    fontWeight: '600',
+  },
+  optionsContainer: {
+    gap: 10,
+    marginBottom: 8,
+  },
+  optionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.inputBg,
+    borderColor: COLORS.borderLight,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 14,
+  },
+  optionCardSelected: {
+    backgroundColor: COLORS.primaryLight,
+    borderColor: COLORS.primary,
+    borderWidth: 1.5,
+  },
+  radioOuter: {
+    height: 20,
+    width: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  radioInner: {
+    height: 10,
+    width: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.primary,
+  },
+  optionText: {
+    color: COLORS.textDark,
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
+  },
+  warningBox: {
+    backgroundColor: COLORS.warningBg,
+    borderColor: COLORS.warningBorder,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 16,
+  },
+  warningTitle: {
+    color: COLORS.warningTitle,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  warningItem: {
+    color: COLORS.warningText,
+    fontSize: 11,
+    lineHeight: 16,
+    marginBottom: 6,
+  },
+  botaoPrimary: {
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
+    marginTop: 18,
+    padding: 14,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+  },
+  botaoPrimaryText: {
+    color: COLORS.white,
+    fontSize: 14,
     fontWeight: 'bold',
   },
 });
