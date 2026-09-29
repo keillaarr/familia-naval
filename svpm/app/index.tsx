@@ -115,10 +115,10 @@ export default function FamiliaNavalScreen() {
               </View>
             </View>
 
-            {/* Autoatendimento (Carrossel Horizontal) */}
+            {/* Principais Serviços (Carrossel Horizontal) */}
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Autoatendimento</Text>
+                <Text style={styles.sectionTitle}>Principais Serviços</Text>
                 <TouchableOpacity onPress={() => setActiveTab('solicitacoes')}>
                   <Text style={styles.seeAllText}>Ver todos</Text>
                 </TouchableOpacity>
@@ -136,6 +136,12 @@ export default function FamiliaNavalScreen() {
                     icon: 'search-outline',
                     color: '#003366',
                     route: 'consulta',
+                  },
+                  {
+                    title: 'Consultas Dependentes',
+                    icon: 'search-outline',
+                    color: '#003366',
+                    route: 'consulta-dependentes',
                   },
                   {
                     title: 'Dados Cadastrais',
@@ -166,7 +172,7 @@ export default function FamiliaNavalScreen() {
 
             {/* Grid de Solicitações (3 colunas no Início) */}
             <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Solicitações</Text>
+              <Text style={styles.sectionTitle}>Serviços</Text>
               <View style={styles.gridContainer}>
                 {SOLICITACOES_LIST.map((item, index) => (
                   <TouchableOpacity

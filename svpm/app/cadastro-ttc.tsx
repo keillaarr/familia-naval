@@ -308,6 +308,7 @@ const categorias = [
 export default function CadastroTTCScreen() {
   const [enviando, setEnviando] = useState(false);
   const [textoLivre, setTextoLivre] = useState('');
+  const [omDesejada, setOmDesejada] = useState(''); // <-- Novo estado para a OM
   const [distritosSelecionados, setDistritosSelecionados] = useState<string[]>([]);
   const [assuntosSelecionados, setAssuntosSelecionados] = useState<string[]>([]);
   const [categoriasAbertas, setCategoriasAbertas] = useState<Record<string, boolean>>({});
@@ -333,6 +334,7 @@ export default function CadastroTTCScreen() {
     try {
       const payload = {
         distritos: distritosSelecionados,
+        omDesejada: omDesejada, // <-- Incluído no payload
         assuntos: assuntosSelecionados,
         informacoesComplementares: textoLivre,
       };
@@ -358,6 +360,7 @@ export default function CadastroTTCScreen() {
           style: 'destructive',
           onPress: () => {
             setDistritosSelecionados([]);
+            setOmDesejada(''); // <-- Limpa o campo da OM
             setAssuntosSelecionados([]);
             setTextoLivre('');
             Alert.alert('Removido', 'Cadastro despublicado.');
@@ -438,6 +441,19 @@ export default function CadastroTTCScreen() {
               </TouchableOpacity>
             ))}
           </View>
+        </View>
+
+        {/* OM DESEJADA */}
+        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Organização Militar (OM) Desejada</Text>
+        <View style={styles.card}>
+          <TextInput
+            placeholder="Ex: BNRJ, AMRJ, Com1ºDN..."
+            placeholderTextColor="#999"
+            style={styles.inputSingle}
+            value={omDesejada}
+            onChangeText={setOmDesejada}
+            accessibilityLabel="Organização Militar desejada"
+          />
         </View>
 
         {/* ÁREAS DE INTERESSE */}
@@ -663,6 +679,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginBottom: 8,
+  },
+  inputSingle: {
+    backgroundColor: '#F8F9FA',
+    borderColor: COLORS.borderLight,
+    borderRadius: 10,
+    borderWidth: 1,
+    color: COLORS.text,
+    fontSize: 14,
+    height: 48,
+    paddingHorizontal: 12,
   },
   chipsWrap: {
     flexDirection: 'row',
