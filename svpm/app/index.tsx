@@ -153,12 +153,12 @@ export default function FamiliaNavalScreen() {
                     color: '#003366',
                     route: 'consulta-dependentes',
                   },
-                  {
+                 {
                     title: 'Dados Cadastrais',
                     icon: 'person-outline',
                     color: '#003366',
-                    route: 'dados-cadastrais',
-                  },
+                    route: 'dados',
+                  }, 
                   {
                     title: 'Declaração de Dependentes IR',
                     icon: 'people-outline',
@@ -308,7 +308,7 @@ export default function FamiliaNavalScreen() {
                   icon: 'person-outline',
                   action: () => {
                     setDrawerVisible(false);
-                    navigation.navigate('dados-cadastrais');
+                    navigation.navigate('cadastrais');
                   },
                 },
               ].map((item, idx) => (

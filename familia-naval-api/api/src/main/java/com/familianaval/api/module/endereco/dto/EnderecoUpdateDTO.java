@@ -1,78 +1,21 @@
-package com.familianaval.api.module.endereco.model;
+package com.familianaval.api.module.endereco.dto;
 
-import com.familianaval.api.module.cidade.model.Cidade;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-
-@Entity
-@Table(name = "endereco")
-public class Endereco {
-
-    @Id
-    @Column(name = "idpessoa")
-    private String idPessoa;
-
-    @Column(name = "dtataulizacao")
-    private String dtAtualizacao; // Nome mantido conforme o banco
-
-    @Column(name = "enderecorua")
+public class EnderecoUpdateDTO {
     private String enderecoRua;
-
-    @Column(name = "endereconumero")
     private String enderecoNumero;
-
-    @Column(name = "enderecocomplemento")
     private String enderecoComplemento;
-
-    @Column(name = "endercobairro")
-    private String enderCoBairro; // Nome mantido conforme o banco
-
-    @Column(name = "cdcidade")
+    private String enderCoBairro;
     private String cdCidade;
-
-    @Column(name = "cep")
     private String cep;
-
-    @Column(name = "dddtel1")
     private String dddTel1;
-
-    @Column(name = "telefone1")
     private String telefone1;
-
-    @Column(name = "dddtel2")
     private String dddTel2;
-
-    @Column(name = "telefone2")
     private String telefone2;
-
-    @Column(name = "dddcel")
     private String dddCelular;
-
-    @Column(name = "celular")
     private String celular;
-
-    @Column(name = "email")
     private String email;
 
-    @Column(name = "dtatualizacaoemail")
-    private String dtAtualizacaoEmail;
-
-    @ManyToOne
-    @JoinColumn(name = "cdcidade", referencedColumnName = "cdcidade", insertable = false, updatable = false)
-    private Cidade cidade;
-
     // Getters e Setters
-    public String getIdPessoa() { return idPessoa; }
-    public void setIdPessoa(String idPessoa) { this.idPessoa = idPessoa; }
-
-    public String getDtAtualizacao() { return dtAtualizacao; }
-    public void setDtAtualizacao(String dtAtualizacao) { this.dtAtualizacao = dtAtualizacao; }
-
     public String getEnderecoRua() { return enderecoRua; }
     public void setEnderecoRua(String enderecoRua) { this.enderecoRua = enderecoRua; }
 
@@ -111,16 +54,4 @@ public class Endereco {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
-
-    public String getDtAtualizacaoEmail() { return dtAtualizacaoEmail; }
-    public void setDtAtualizacaoEmail(String dtAtualizacaoEmail) { this.dtAtualizacaoEmail = dtAtualizacaoEmail; }
-
-    // Getters e Setters corretos para o relacionamento com a entidade Cidade
-    public Cidade getCidade() {
-        return cidade;
-    }
-
-    public void setCidade(Cidade cidade) {
-        this.cidade = cidade;
-    }
 }

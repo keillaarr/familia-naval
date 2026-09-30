@@ -1,12 +1,15 @@
 package com.familianaval.api.module.endereco.service;
 
+import com.familianaval.api.module.cidade.model.Cidade;
+import com.familianaval.api.module.endereco.dto.EnderecoResponseDTO;
+import com.familianaval.api.module.endereco.dto.EnderecoUpdateDTO;
 import com.familianaval.api.module.endereco.model.Endereco;
 import com.familianaval.api.module.endereco.repository.EnderecoRepository;
 import com.familianaval.api.module.pessoa.model.Pessoa;
 import com.familianaval.api.module.pessoa.repository.PessoaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
@@ -20,15 +23,17 @@ public class EnderecoService {
     @Autowired
     private PessoaRepository pessoaRepository;
 
+    @Value("${app.crypto.key:bf}")
+    private String cryptoKey;
+
     private String getDataAtualFormatada() {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
         return LocalDateTime.now().format(formatter);
     }
 
-    // Função específica para sanitizar e limitar o CEP a 8 dígitos (respeitando o VARCHAR(8))
     private String limparELimitarCep(String cep) {
         if (cep != null) {
-            String cepLimpo = cep.replaceAll("\\D", ""); // Remove tudo que não for número (ex: hífens)
+            String cepLimpo = cep.replaceAll("\\D", "");
             if (cepLimpo.length() > 8) {
                 return cepLimpo.substring(0, 8);
             }
@@ -41,7 +46,7 @@ public class EnderecoService {
         return enderecoRepository.findById(idPessoa);
     }
 
-    public Optional<Endereco> buscarPorCpf(String cpf) {
+    public EnderecoResponseDTO buscarPorCpf(String cpf) {
         System.out.println("=== INÍCIO DA BUSCA POR CPF: [" + cpf + "] ===");
 
         Optional<Pessoa> pessoaOpt = pessoaRepository.findByCpfpessoa(cpf);
@@ -54,19 +59,55 @@ public class EnderecoService {
             System.out.println("-> ID da Pessoa mapeado: [" + idPessoa + "]");
             
             Optional<Endereco> enderecoOpt = enderecoRepository.findById(idPessoa);
-            System.out.println("-> Endereço encontrado no banco para este ID? " + enderecoOpt.isPresent());
             
-            return enderecoOpt;
+            if (enderecoOpt.isPresent()) {
+                Endereco endereco = enderecoOpt.get();
+                System.out.println("-> Endereço encontrado no banco para este ID!");
+
+                EnderecoResponseDTO dto = new EnderecoResponseDTO();
+                
+                String nomeDescriptografado = null;
+                try {
+                    nomeDescriptografado = pessoaRepository.descriptografarNomePorId(idPessoa, cryptoKey);
+                } catch (Exception e) {
+                    System.out.println("-> Erro ao descriptografar nome: " + e.getMessage());
+                }
+
+                String nomeFinal = (nomeDescriptografado != null && !nomeDescriptografado.isBlank()) 
+                        ? nomeDescriptografado 
+                        : pessoa.getNomecpessoa();
+
+                dto.setNome(nomeFinal); 
+                dto.setLogradouro(endereco.getEnderecoRua());
+                dto.setNumero(endereco.getEnderecoNumero());
+                dto.setComplemento(endereco.getEnderecoComplemento());
+                dto.setBairro(endereco.getEnderCoBairro());
+                dto.setCep(endereco.getCep());
+                dto.setTelefone(endereco.getTelefone1());
+                dto.setCelular(endereco.getCelular());
+                dto.setEmail(endereco.getEmail());
+                
+                if (endereco.getCidade() != null) {
+                    Cidade cidadeObj = (Cidade) endereco.getCidade();
+                    dto.setCidade(cidadeObj.getNomecidade());
+                    dto.setSiglaUf(cidadeObj.getSiglauf());
+                } else {
+                    dto.setCidade(endereco.getCdCidade());
+                }
+
+                return dto;
+            } else {
+                System.out.println("-> ATENÇÃO: Pessoa encontrada, mas nenhum endereço cadastrado para o ID: [" + idPessoa + "]");
+            }
         } else {
             System.out.println("-> ATENÇÃO: Nenhuma pessoa foi encontrada no banco com o CPF: [" + cpf + "]");
         }
         
-        System.out.println("=== FIM DA BUSCA (RETORNANDO VAZIO) ===");
-        return Optional.empty();
+        System.out.println("=== FIM DA BUSCA (RETORNANDO NULO) ===");
+        return null;
     }
 
-    public Endereco salvarOuAtualizar(String cpfOuIdPessoa, Endereco novosDados) {
-        // 1. Resolve o CPF para o ID da pessoa correto
+    public Endereco salvarOuAtualizar(String cpfOuIdPessoa, EnderecoUpdateDTO novosDados) {
         Optional<Pessoa> pessoaOpt = pessoaRepository.findByCpfpessoa(cpfOuIdPessoa);
         String idPessoa;
 
@@ -74,7 +115,7 @@ public class EnderecoService {
             idPessoa = pessoaOpt.get().getIdpessoa();
             System.out.println("-> CPF resolvido para o ID da Pessoa: [" + idPessoa + "]");
         } else {
-            idPessoa = cpfOuIdPessoa; // Caso já venha o ID diretamente
+            idPessoa = cpfOuIdPessoa;
         }
 
         Optional<Endereco> enderecoExistenteOpt = enderecoRepository.findById(idPessoa);
@@ -85,7 +126,6 @@ public class EnderecoService {
         if (enderecoExistenteOpt.isPresent()) {
             endereco = enderecoExistenteOpt.get();
 
-            // Verifica se os campos de endereço mudaram de forma independente
             boolean enderecoAlterado = 
                 isDiferente(endereco.getEnderecoRua(), novosDados.getEnderecoRua()) ||
                 isDiferente(endereco.getEnderecoNumero(), novosDados.getEnderecoNumero()) ||
@@ -100,13 +140,27 @@ public class EnderecoService {
                 endereco.setDtAtualizacao(dataAtual);
             }
 
-            // Verifica se o e-mail mudou de forma 100% independente do endereço
             if (isDiferente(endereco.getEmail(), novosDados.getEmail())) {
                 endereco.setEmail(novosDados.getEmail());
-                endereco.setDtAtualizacaoEmail(dataAtual); // Atualiza a data do e-mail apenas se o e-mail mudou
+                endereco.setDtAtualizacaoEmail(dataAtual);
             }
 
-            // Atualiza os demais campos do endereço
+            endereco.setEnderecoRua(novosDados.getEnderecoRua());
+            endereco.setEnderecoNumero(novosDados.getEnderecoNumero());
+            endereco.setEnderecoComplemento(novosDados.getEnderecoComplemento());
+            endereco.setEnderCoBairro(novosDados.getEnderCoBairro());
+            endereco.setCdCidade(novosDados.getCdCidade()); // Atualiza com o código da cidade selecionada pelo front-end
+            endereco.setCep(limparELimitarCep(novosDados.getCep()));
+            endereco.setDddTel1(novosDados.getDddTel1());
+            endereco.setTelefone1(novosDados.getTelefone1());
+            endereco.setDddTel2(novosDados.getDddTel2());
+            endereco.setTelefone2(novosDados.getTelefone2());
+            endereco.setDddCelular(novosDados.getDddCelular());
+            endereco.setCelular(novosDados.getCelular());
+
+        } else {
+            endereco = new Endereco();
+            endereco.setIdPessoa(idPessoa);
             endereco.setEnderecoRua(novosDados.getEnderecoRua());
             endereco.setEnderecoNumero(novosDados.getEnderecoNumero());
             endereco.setEnderecoComplemento(novosDados.getEnderecoComplemento());
@@ -119,12 +173,7 @@ public class EnderecoService {
             endereco.setTelefone2(novosDados.getTelefone2());
             endereco.setDddCelular(novosDados.getDddCelular());
             endereco.setCelular(novosDados.getCelular());
-
-        } else {
-            // Novo registro
-            endereco = novosDados;
-            endereco.setIdPessoa(idPessoa);
-            endereco.setCep(limparELimitarCep(novosDados.getCep()));
+            endereco.setEmail(novosDados.getEmail());
             endereco.setDtAtualizacao(dataAtual);
             
             if (novosDados.getEmail() != null && !novosDados.getEmail().isEmpty()) {

@@ -1,5 +1,7 @@
 package com.familianaval.api.module.endereco.controller;
 
+import com.familianaval.api.module.endereco.dto.EnderecoResponseDTO;
+import com.familianaval.api.module.endereco.dto.EnderecoUpdateDTO;
 import com.familianaval.api.module.endereco.model.Endereco;
 import com.familianaval.api.module.endereco.service.EnderecoService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,12 +17,16 @@ public class EnderecoController {
     @Autowired
     private EnderecoService enderecoService;
 
-    // 1. READ: Buscar por CPF
+    // 1. READ: Buscar por CPF usando PathVariable
     @GetMapping("/cpf/{cpf}")
-    public ResponseEntity<Endereco> buscarPorCpf(@PathVariable String cpf) {
-        Optional<Endereco> endereco = enderecoService.buscarPorCpf(cpf);
-        return endereco.map(ResponseEntity::ok)
-                       .orElseGet(() -> ResponseEntity.notFound().build());
+    public ResponseEntity<EnderecoResponseDTO> buscarPorCpf(@PathVariable String cpf) {
+        EnderecoResponseDTO dto = enderecoService.buscarPorCpf(cpf);
+        
+        if (dto != null) {
+            return ResponseEntity.ok(dto);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     // 2. READ: Buscar por ID da Pessoa
@@ -31,11 +37,12 @@ public class EnderecoController {
                        .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // 3. CREATE / UPDATE (Salvar ou Atualizar os dados do endereço da pessoa)
-    @PutMapping("/{idPessoa}")
-    public ResponseEntity<Endereco> salvarOuAtualizar(@PathVariable String idPessoa, @RequestBody Endereco novosDados) {
+    // 3. CREATE / UPDATE: Salvar ou Atualizar usando o CPF na URL (compatível com o front-end)
+    @PutMapping("/cpf/{cpf}")
+    public ResponseEntity<Endereco> salvarOuAtualizarPorCpf(@PathVariable String cpf, @RequestBody EnderecoUpdateDTO novosDados) {
         try {
-            Endereco enderecoSalvo = enderecoService.salvarOuAtualizar(idPessoa, novosDados);
+            // Reaproveita perfeitamente o método existente no seu Service que resolve o CPF para ID
+            Endereco enderecoSalvo = enderecoService.salvarOuAtualizar(cpf, novosDados);
             return ResponseEntity.ok(enderecoSalvo);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
@@ -47,8 +54,6 @@ public class EnderecoController {
     public ResponseEntity<Void> deletar(@PathVariable String idPessoa) {
         Optional<Endereco> endereco = enderecoService.buscarPorIdPessoa(idPessoa);
         if (endereco.isPresent()) {
-            // Se você tiver o método delete no service/repository, adicione aqui:
-            // enderecoService.deletar(idPessoa);
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
