@@ -1,15 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const COLORS = {
@@ -27,45 +28,48 @@ const COLORS = {
   accentBlue: '#00509E',
 };
 
-export default function DependentesScreen() {
-  // Exemplo de lista de dependentes cadastrados
-  const [dependentesList] = useState([
-    {
-      id: '1',
-      titular: 'Capitão Carlos Eduardo de Souza',
-      nomeDependente: 'Ana Beatriz da Silva Souza',
-      parentesco: 'Cônjuge',
-      dependencia: 'Ativa / Legal',
-    },
-    {
-      id: '2',
-      titular: 'Capitão Carlos Eduardo de Souza',
-      nomeDependente: 'Lucas Gabriel da Silva Souza',
-      parentesco: 'Filho(a)',
-      dependencia: 'Ativa / Menor de idade',
-    },
-    {
-      id: '3',
-      titular: 'Capitão Carlos Eduardo de Souza',
-      nomeDependente: 'Mariana da Silva Souza',
-      parentesco: 'Filho(a)',
-      dependencia: 'Ativa / Estudante',
-    },
-  ]);
+// Interface atualizada para incluir os campos reais vindos da API
+interface Dependente {
+  nipDep?: string | number;
+  dependencia?: string | null;
+  nomeDep?: string;
+  parentesco?: string;
+  nipTit?: string | number;
+  cpf?: string;
+  concedido?: string | null;
+}
 
-  const handleAdicionarDependente = () => {
-    Alert.alert(
-      'Novo Dependente',
-      'Deseja iniciar o processo de inclusão de um novo dependente?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Continuar',
-          onPress: () =>
-            Alert.alert('Informação', 'Redirecionando para o formulário de cadastro...'),
-        },
-      ]
-    );
+export default function DependentesScreen() {
+  const [dependentesList, setDependentesList] = useState<Dependente[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // NIP atualizado conforme o seu teste no backend
+  const nipTitular = '76317978'; 
+
+  useEffect(() => {
+    fetchDependentes();
+  }, []);
+
+  const fetchDependentes = async () => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/pessoa/dependentes/usuario/${nipTitular}`);
+      const data = await response.json();
+      
+      console.log("Dados recebidos da API:", data);
+      
+      if (response.ok) {
+        if (Array.isArray(data)) {
+          setDependentesList(data);
+        }
+      } else {
+        Alert.alert('Aviso', 'Não foi possível carregar os dependentes.');
+      }
+    } catch (error) {
+      console.error("Erro no fetch:", error);
+      Alert.alert('Erro', 'Falha de conexão com o servidor.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -107,54 +111,51 @@ export default function DependentesScreen() {
           </Text>
         </View>
 
-        {/* Lista de Cards de Dependentes */}
-        {dependentesList.map((item) => (
-          <View key={item.id} style={styles.card}>
-            <View style={styles.cardHeaderRow}>
-              <View style={styles.badgeIconSmall}>
-                <Ionicons name="person-outline" size={18} color={COLORS.primary} />
-              </View>
-              <View style={styles.badgeSuccessInline}>
-                <Ionicons name="checkmark-circle" size={14} color={COLORS.greenSuccess} />
-                <Text style={styles.badgeSuccessText}>{item.dependencia}</Text>
-              </View>
-            </View>
-
-            <View style={styles.infoBlock}>
-              <Text style={styles.fieldLabel}>Nome do Dependente</Text>
-              <Text style={styles.fieldValueBold}>{item.nomeDependente}</Text>
-            </View>
-
-            <View style={styles.rowGridFields}>
-              <View style={styles.halfField}>
-                <Text style={styles.fieldLabel}>Parentesco</Text>
-                <Text style={styles.fieldValue}>{item.parentesco}</Text>
-              </View>
-              <View style={styles.halfField}>
-                <Text style={styles.fieldLabel}>Nome do Titular</Text>
-                <Text style={styles.fieldValue} numberOfLines={1}>{item.titular}</Text>
-              </View>
-            </View>
+        {loading ? (
+          <View style={{ marginTop: 40, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={{ marginTop: 10, color: COLORS.textMuted, fontSize: 12 }}>Carregando dados...</Text>
           </View>
-        ))}
+        ) : dependentesList.length === 0 ? (
+          <View style={{ marginTop: 30, alignItems: 'center' }}>
+            <Text style={{ color: COLORS.textMuted, fontSize: 13 }}>Nenhum dependente encontrado.</Text>
+          </View>
+        ) : (
+          dependentesList.map((item, index) => (
+            <View key={item.nipDep || index} style={styles.card}>
+              <View style={styles.cardHeaderRow}>
+                <View style={styles.badgeIconSmall}>
+                  <Ionicons name="person-outline" size={18} color={COLORS.primary} />
+                </View>
+                <View style={styles.badgeSuccessInline}>
+                  <Ionicons name="checkmark-circle" size={14} color={COLORS.greenSuccess} />
+                  <Text style={styles.badgeSuccessText}>{item.dependencia || 'Ativo'}</Text>
+                </View>
+              </View>
 
-        {/* Card Informativo Rápido */}
-        <View style={styles.infoCardNote}>
-          <Ionicons name="information-circle-outline" size={20} color={COLORS.primary} style={{ marginRight: 10, marginTop: 2 }} />
-          <Text style={styles.infoNoteText}>
-            Caso precise atualizar dados cadastrais ou incluir novos beneficiários, utilize o botão abaixo para solicitar a alteração junto ao órgão competente.
-          </Text>
-        </View>
+              <View style={styles.infoBlock}>
+                <Text style={styles.fieldLabel}>Nome do Dependente</Text>
+                <Text style={styles.fieldValueBold}>{item.nomeDep}</Text>
+              </View>
 
-        {/* BOTÃO */}
-        <TouchableOpacity
-          activeOpacity={0.8}
-          style={styles.botaoPrimary}
-          onPress={handleAdicionarDependente}
-        >
-          <Ionicons name="add-circle-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
-          <Text style={styles.botaoPrimaryText}>Adicionar / Atualizar Dependente</Text>
-        </TouchableOpacity>
+              <View style={styles.infoBlock}>
+                <Text style={styles.fieldLabel}>CPF</Text>
+                <Text style={styles.fieldValue}>{item.cpf || 'Não informado'}</Text>
+              </View>
+
+              <View style={styles.rowGridFields}>
+                <View style={styles.halfField}>
+                  <Text style={styles.fieldLabel}>Parentesco</Text>
+                  <Text style={styles.fieldValue}>{item.parentesco}</Text>
+                </View>
+                <View style={styles.halfField}>
+                  <Text style={styles.fieldLabel}>NIP Titular</Text>
+                  <Text style={styles.fieldValue} numberOfLines={1}>{item.nipTit}</Text>
+                </View>
+              </View>
+            </View>
+          ))
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -325,39 +326,5 @@ const styles = StyleSheet.create({
     color: COLORS.textDark,
     fontSize: 13,
     fontWeight: '500',
-  },
-  infoCardNote: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFDE7',
-    borderColor: '#FFF59D',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 4,
-    marginBottom: 8,
-  },
-  infoNoteText: {
-    color: '#827717',
-    fontSize: 12,
-    lineHeight: 18,
-    flex: 1,
-  },
-  botaoPrimary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    marginTop: 16,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-  },
-  botaoPrimaryText: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontWeight: 'bold',
   },
 });

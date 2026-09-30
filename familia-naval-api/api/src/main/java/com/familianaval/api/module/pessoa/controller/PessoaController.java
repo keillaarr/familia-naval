@@ -1,5 +1,7 @@
 package com.familianaval.api.module.pessoa.controller;
 
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.familianaval.api.module.dependente.model.Dependente;
+import com.familianaval.api.module.dependente.repository.DependenteRepository;
 import com.familianaval.api.module.inspsaude.dto.InspecaoSaudeRequestDTO;
 import com.familianaval.api.module.pessoa.dto.AuxilioInvalidezDTO;
 import com.familianaval.api.module.pessoa.dto.PessoaHomeDTO;
@@ -22,9 +26,12 @@ import com.familianaval.api.module.pessoa.service.PessoaService;
 public class PessoaController {
 
     private final PessoaService pessoaService;
+    private final DependenteRepository dependenteRepository; // 1. Declarar o repository
 
-    public PessoaController(PessoaService pessoaService) {
+    // 2. Injetar ambos no construtor
+    public PessoaController(PessoaService pessoaService, DependenteRepository dependenteRepository) {
         this.pessoaService = pessoaService;
+        this.dependenteRepository = dependenteRepository;
     }
 
     @GetMapping("/ping")
@@ -75,4 +82,20 @@ public class PessoaController {
         // Sua lógica de salvamento aqui
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping("/dependentes/usuario/{nipTit}")
+    public ResponseEntity<List<Dependente>> listarDependentesPorTitular(@PathVariable String nipTit) {
+        try {
+            // 3. Chamar o método usando a instância (minúsculo)
+            List<Dependente> dependentes = dependenteRepository.findByNipTit(nipTit);
+            return ResponseEntity.ok(dependentes);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @GetMapping("/teste-dependente")
+        public ResponseEntity<String> testeDependente() {
+            return ResponseEntity.ok("Rota de dependentes ativa!");
+        }
 }
