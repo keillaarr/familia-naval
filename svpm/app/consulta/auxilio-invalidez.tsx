@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   SafeAreaView,
   ScrollView,
@@ -27,13 +28,45 @@ const COLORS = {
   accentBlue: '#00509E',
 };
 
+// Alinhado com as propriedades retornadas pelo DTO do back-end
+interface AuxilioInvalidezDTO {
+  ultimaDeclaracao: string;
+  proximaDeclaracao: string;
+  situacao: string;
+  mensagemSituacao: string;
+  podeEnviarNovaDeclaracao: boolean;
+}
+
 export default function AuxilioInvalidezScreen() {
-  const [dados] = useState({
-    ultimaDeclaracao: '05/2026',
-    proximaDeclaracao: '01/2027',
-    situacao: 'Regular',
-    detalheSituacao: 'Último envio registrado em 05/2026.',
-  });
+  const [dados, setDados] = useState<AuxilioInvalidezDTO | null>(null);
+  const [carregando, setCarregando] = useState<boolean>(true);
+
+  // Substitua pelo identificador/CPF correto ou parâmetro dinâmico da sua sessão
+  const identificadorUsuario = '78442621415'; 
+  const API_BASE_URL = 'http://localhost:8080/api/v1';
+
+  useEffect(() => {
+    buscarDadosAuxilioInvalidez();
+  }, []);
+
+  const buscarDadosAuxilioInvalidez = async () => {
+    try {
+      setCarregando(true);
+      const response = await fetch(`${API_BASE_URL}/pessoa/auxilio-invalidez/${identificadorUsuario}`);
+      
+      if (!response.ok) {
+        throw new Error('Não foi possível buscar os dados de auxílio invalidez.');
+      }
+
+      const resultado: AuxilioInvalidezDTO = await response.json();
+      setDados(resultado);
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Erro', 'Falha ao conectar com o servidor para carregar o auxílio invalidez.');
+    } finally {
+      setCarregando(false);
+    }
+  };
 
   const handleEnviarDeclaracao = () => {
     Alert.alert(
@@ -89,36 +122,45 @@ export default function AuxilioInvalidezScreen() {
           </Text>
         </View>
 
-        {/* Layout em Grid / Cards Compactos Lado a Lado para Datas */}
-        <View style={styles.rowGrid}>
-          <View style={[styles.card, styles.gridCard]}>
-            <View style={styles.badgeIconSmall}>
-              <Ionicons name="calendar-outline" size={18} color={COLORS.primary} />
-            </View>
-            <Text style={styles.gridLabel}>Última Declaração</Text>
-            <Text style={styles.gridValor}>{dados.ultimaDeclaracao}</Text>
+        {carregando ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.loadingText}>Carregando informações...</Text>
           </View>
+        ) : (
+          <>
+            {/* Layout em Grid / Cards Compactos Lado a Lado para Datas */}
+            <View style={styles.rowGrid}>
+              <View style={[styles.card, styles.gridCard]}>
+                <View style={styles.badgeIconSmall}>
+                  <Ionicons name="calendar-outline" size={18} color={COLORS.primary} />
+                </View>
+                <Text style={styles.gridLabel}>Última Declaração</Text>
+                <Text style={styles.gridValor}>{dados?.ultimaDeclaracao || '-'}</Text>
+              </View>
 
-          <View style={[styles.card, styles.gridCard]}>
-            <View style={[styles.badgeIconSmall, { backgroundColor: '#E3F2FD' }]}>
-              <Ionicons name="calendar-sharp" size={18} color={COLORS.accentBlue} />
+              <View style={[styles.card, styles.gridCard]}>
+                <View style={[styles.badgeIconSmall, { backgroundColor: '#E3F2FD' }]}>
+                  <Ionicons name="calendar-sharp" size={18} color={COLORS.accentBlue} />
+                </View>
+                <Text style={styles.gridLabel}>Próxima Entrega</Text>
+                <Text style={styles.gridValor}>{dados?.proximaDeclaracao || '-'}</Text>
+              </View>
             </View>
-            <Text style={styles.gridLabel}>Próxima Entrega</Text>
-            <Text style={styles.gridValor}>{dados.proximaDeclaracao}</Text>
-          </View>
-        </View>
 
-        {/* Card de Status Destacado */}
-        <View style={styles.card}>
-          <View style={styles.statusHeaderRow}>
-            <Text style={styles.label}>Situação Atual</Text>
-            <View style={styles.badgeSuccessInline}>
-              <Ionicons name="checkmark-circle" size={14} color={COLORS.greenSuccess} />
-              <Text style={styles.badgeSuccessText}>{dados.situacao}</Text>
+            {/* Card de Status Destacado */}
+            <View style={styles.card}>
+              <View style={styles.statusHeaderRow}>
+                <Text style={styles.label}>Situação Atual</Text>
+                <View style={styles.badgeSuccessInline}>
+                  <Ionicons name="checkmark-circle" size={14} color={COLORS.greenSuccess} />
+                  <Text style={styles.badgeSuccessText}>{dados?.situacao || 'Regular'}</Text>
+                </View>
+              </View>
+              <Text style={styles.subtextDetalhe}>{dados?.mensagemSituacao || '-'}</Text>
             </View>
-          </View>
-          <Text style={styles.subtextDetalhe}>{dados.detalheSituacao}</Text>
-        </View>
+          </>
+        )}
 
         {/* Card Informativo Rápido */}
         <View style={styles.infoCardNote}>
@@ -237,6 +279,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textMuted,
     marginTop: 2,
+  },
+  loadingContainer: {
+    padding: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: COLORS.textMuted,
+    fontSize: 13,
   },
   rowGrid: {
     flexDirection: 'row',

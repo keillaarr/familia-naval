@@ -1,16 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+
+interface ComunicadoAPI {
+  id: number;
+  cpfUsuario: string;
+  assunto: string;
+  cpfAutor: string;
+  nomeArquivo: string;
+  dataDocumento: string;
+  lido: number;
+}
 
 interface Comunicado {
   id: string;
@@ -20,86 +31,80 @@ interface Comunicado {
   tipo: 'dependentes' | 'inspecao' | 'geral';
 }
 
-const comunicadosDados: Comunicado[] = [
-  {
-    id: '1',
-    data: '02/06/2026',
-    titulo: 'Declaração de Dependentes',
-    tipo: 'dependentes',
-    conteudo:
-      'Informa-se que a Declaração de Dependentes para fins de IRRF do ano corrente foi registrada e processada no sistema.',
-  },
-  {
-    id: '2',
-    data: '16/05/2024',
-    titulo: 'Inspeção de Saúde',
-    tipo: 'inspecao',
-    conteudo:
-      'Resultado de Inspeção de Saúde realizado na Policlínica Naval. Parecer: Apto para os fins a que se destina.',
-  },
-  {
-    id: '3',
-    data: '28/04/2024',
-    titulo: 'Declaração de Dependentes',
-    tipo: 'dependentes',
-    conteudo:
-      'Atualização cadastral de dependente efetuada com sucesso no cadastro geral do SVPM.',
-  },
-  {
-    id: '4',
-    data: '27/04/2024',
-    titulo: 'Declaração de Dependentes',
-    tipo: 'dependentes',
-    conteudo:
-      'Comprovante de envio de documentação referente à atualização de dependentes.',
-  },
-  {
-    id: '5',
-    data: '01/04/2024',
-    titulo: 'Inspeção de Saúde',
-    tipo: 'inspecao',
-    conteudo:
-      'Agendamento de Inspeção de Saúde periódica confirmado para a data correspondente.',
-  },
-  {
-    id: '6',
-    data: '20/07/2023',
-    titulo: 'Inspeção de Saúde',
-    tipo: 'inspecao',
-    conteudo: 'Parecer médico referente ao requerimento de saúde submetido.',
-  },
-  {
-    id: '7',
-    data: '20/07/2023',
-    titulo: 'Declaração de Dependentes',
-    tipo: 'dependentes',
-    conteudo: 'Confirmação de recebimento do formulário de dependentes.',
-  },
-  {
-    id: '8',
-    data: '01/01/2023',
-    titulo: 'Declaração de Dependentes',
-    tipo: 'dependentes',
-    conteudo: 'Declaração anual de dependentes enviada ao banco de dados.',
-  },
-  {
-    id: '9',
-    data: '15/08/2021',
-    titulo: 'Inspeção de Saúde',
-    tipo: 'inspecao',
-    conteudo: 'Registro de laudo de Inspeção de Saúde arquivado.',
-  },
-  {
-    id: '10',
-    data: '15/12/2020',
-    titulo: 'Inspeção de Saúde',
-    tipo: 'inspecao',
-    conteudo: 'Parecer da Junta Regular de Saúde publicado no sistema.',
-  },
-];
-
 export default function ComunicadosScreen() {
+  const [comunicados, setComunicados] = useState<Comunicado[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [comunicadoSelecionado, setComunicadoSelecionado] = useState<Comunicado | null>(null);
+
+  // Substitua pelo NIP/CPF do usuário logado conforme sua aplicação
+  const usuarioCpfOrNip = '00000028797'; 
+
+  useEffect(() => {
+    buscarComunicados();
+  }, []);
+
+  // Função para corrigir textos corrompidos por problema de encoding (ex: "InspeÃ§Ã£o" -> "Inspeção")
+  const corrigirTexto = (texto: string) => {
+    if (!texto) return '';
+    try {
+      return decodeURIComponent(escape(texto));
+    } catch (e) {
+      return texto
+        .replace(/Ã§/g, 'ç')
+        .replace(/Ã£/g, 'ã')
+        .replace(/Ã©/g, 'é')
+        .replace(/Ã¡/g, 'á')
+        .replace(/Ã³/g, 'ó')
+        .replace(/Ãº/g, 'ú')
+        .replace(/Ãª/g, 'ê')
+        .replace(/Ã/g, 'Í')
+        .replace(/Ã£o/g, 'ão')
+        .replace(/Âº/g, 'º');
+    }
+  };
+
+  const buscarComunicados = async () => {
+    try {
+      setLoading(true);
+      // Lembre-se: se estiver testando no Expo Go físico, use o IP da sua máquina em vez de 'localhost'
+      const res = await fetch(`http://localhost:8080/api/v1/comunicados/usuario/${usuarioCpfOrNip}`);
+      const data: ComunicadoAPI[] = await res.json();
+
+      const dadosFormatados: Comunicado[] = data.map((item) => {
+        // Formatar data de YYYY-MM-DD para DD/MM/YYYY se necessário
+        let dataFormatada = item.dataDocumento;
+        if (item.dataDocumento && item.dataDocumento.includes('-')) {
+          const [ano, mes, dia] = item.dataDocumento.split('-');
+          dataFormatada = `${dia}/${mes}/${ano}`;
+        }
+
+        const assuntoCorrigido = corrigirTexto(item.assunto);
+
+        // Descobrir o tipo com base no assunto corrigido
+        let tipo: Comunicado['tipo'] = 'geral';
+        const assuntoLower = assuntoCorrigido.toLowerCase();
+        if (assuntoLower.includes('dependente')) {
+          tipo = 'dependentes';
+        } else if (assuntoLower.includes('saúde') || assuntoLower.includes('inspeção')) {
+          tipo = 'inspecao';
+        }
+
+        return {
+          id: String(item.id),
+          data: dataFormatada || 'Data não informada',
+          titulo: assuntoCorrigido,
+          tipo: tipo,
+          conteudo: corrigirTexto(`Documento vinculado: ${item.nomeArquivo} (Status de leitura: ${item.lido === 1 ? 'Lido' : 'Não lido'})`),
+        };
+      });
+
+      setComunicados(dadosFormatados);
+    } catch (error) {
+      console.error('Erro ao buscar comunicados:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getIconeNome = (tipo: Comunicado['tipo']): keyof typeof Ionicons.glyphMap => {
     switch (tipo) {
@@ -133,34 +138,45 @@ export default function ComunicadosScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Registrados no Sistema</Text>
-          <Text style={styles.counterBadge}>{comunicadosDados.length} itens</Text>
+          <Text style={styles.counterBadge}>{comunicados.length} itens</Text>
         </View>
 
-        {comunicadosDados.map((item) => (
-          <View key={item.id} style={styles.cardItem}>
-            <View style={styles.itemTopo}>
-              <View style={styles.iconeBadge}>
-                <Ionicons name={getIconeNome(item.tipo)} size={20} color={COLORS.primary} />
-              </View>
-
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemData}>
-                  <Ionicons name="calendar-outline" size={11} color={COLORS.textMuted} /> {item.data}
-                </Text>
-                <Text style={styles.itemTitulo}>{item.titulo}</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={styles.btnVisualizar}
-              onPress={() => setComunicadoSelecionado(item)}
-            >
-              <Text style={styles.btnVisualizarText}>Visualizar Comunicado</Text>
-              <Ionicons name="chevron-forward" size={14} color={COLORS.primary} style={{ marginLeft: 4 }} />
-            </TouchableOpacity>
+        {loading ? (
+          <View style={{ marginTop: 40, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={{ marginTop: 10, color: COLORS.textMuted }}>Carregando comunicados...</Text>
           </View>
-        ))}
+        ) : comunicados.length === 0 ? (
+          <View style={{ marginTop: 40, alignItems: 'center' }}>
+            <Text style={{ color: COLORS.textMuted }}>Nenhum comunicado encontrado.</Text>
+          </View>
+        ) : (
+          comunicados.map((item) => (
+            <View key={item.id} style={styles.cardItem}>
+              <View style={styles.itemTopo}>
+                <View style={styles.iconeBadge}>
+                  <Ionicons name={getIconeNome(item.tipo)} size={20} color={COLORS.primary} />
+                </View>
+
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemData}>
+                    <Ionicons name="calendar-outline" size={11} color={COLORS.textMuted} /> {item.data}
+                  </Text>
+                  <Text style={styles.itemTitulo}>{item.titulo}</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={styles.btnVisualizar}
+                onPress={() => setComunicadoSelecionado(item)}
+              >
+                <Text style={styles.btnVisualizarText}>Visualizar Comunicado</Text>
+                <Ionicons name="chevron-forward" size={14} color={COLORS.primary} style={{ marginLeft: 4 }} />
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
 
         <TouchableOpacity
           activeOpacity={0.7}

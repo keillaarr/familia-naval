@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   SafeAreaView,
   ScrollView,
@@ -26,13 +27,43 @@ const COLORS = {
   greenBg: '#E8F5E9',
 };
 
+// Alinhado com as chaves exatas retornadas pelo DTO do back-end (visto no Postman)
+interface ProvaVidaDTO {
+  ultRecadastramento: string;
+  proxRecadastramento: string;
+  situacao: string;
+}
+
 export default function ProvaVidaScreen() {
-  // futuramente virá da API
-  const [dados] = useState({
-    ultimoRecadastramento: '05 de maio de 2026',
-    proximoRecadastramento: 'maio de 2027',
-    situacao: 'Regular',
-  });
+  const [dados, setDados] = useState<ProvaVidaDTO | null>(null);
+  const [carregando, setCarregando] = useState<boolean>(true);
+  
+  const cpfUsuario = '77492846720'; 
+  // Incluído o prefixo /api/v1 conforme testado com sucesso no Postman
+  const API_BASE_URL = 'http://localhost:8080/api/v1';
+
+  useEffect(() => {
+    buscarDadosProvaVida();
+  }, []);
+
+  const buscarDadosProvaVida = async () => {
+    try {
+      setCarregando(true);
+      const response = await fetch(`${API_BASE_URL}/pessoa/prova-vida/${cpfUsuario}`);
+      
+      if (!response.ok) {
+        throw new Error('Não foi possível buscar os dados de prova de vida.');
+      }
+
+      const resultado: ProvaVidaDTO = await response.json();
+      setDados(resultado);
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Erro', 'Falha ao conectar com o servidor para carregar a prova de vida.');
+    } finally {
+      setCarregando(false);
+    }
+  };
 
   const handleAtualizarDados = () => {
     Alert.alert(
@@ -74,32 +105,39 @@ export default function ProvaVidaScreen() {
           </Text>
         </View>
 
-        <View style={styles.card}>
-          {/* ÚLTIMO */}
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Último Recadastramento</Text>
-            <Text style={styles.valor}>{dados.ultimoRecadastramento}</Text>
+        {carregando ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.loadingText}>Carregando informações...</Text>
           </View>
+        ) : (
+          <View style={styles.card}>
+            {/* ÚLTIMO */}
+            <View style={styles.infoRow}>
+              <Text style={styles.label}>Último Recadastramento</Text>
+              <Text style={styles.valor}>{dados?.ultRecadastramento || '-'}</Text>
+            </View>
 
-          {/* PRÓXIMO */}
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Próximo Recadastramento</Text>
-            <Text style={styles.valor}>{dados.proximoRecadastramento}</Text>
-          </View>
+            {/* PRÓXIMO */}
+            <View style={styles.infoRow}>
+              <Text style={styles.label}>Próximo Recadastramento</Text>
+              <Text style={styles.valor}>{dados?.proxRecadastramento || '-'}</Text>
+            </View>
 
-          {/* SITUAÇÃO */}
-          <View style={styles.statusContainer}>
-            <Ionicons
-              name="checkmark-circle-outline"
-              size={18}
-              color={COLORS.greenSuccess}
-              style={{ marginRight: 6 }}
-            />
-            <Text style={styles.statusTexto}>
-              Situação: {dados.situacao}
-            </Text>
+            {/* SITUAÇÃO */}
+            <View style={styles.statusContainer}>
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={18}
+                color={COLORS.greenSuccess}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.statusTexto}>
+                Situação: {dados?.situacao || 'Indefinida'}
+              </Text>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* BOTÃO */}
         <TouchableOpacity
@@ -164,6 +202,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textMuted,
     marginTop: 2,
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: COLORS.textMuted,
+    fontSize: 13,
   },
   card: {
     backgroundColor: COLORS.white,

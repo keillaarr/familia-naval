@@ -2,23 +2,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TextInputProps,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TextInputProps,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
-// --- PALETA DE CORES / TEMA PADronizada ---
+// --- PALETA DE CORES / TEMA PADRONIZADA ---
 const COLORS = {
   primary: '#003366',
   primaryLight: '#EBF3FA',
@@ -107,6 +107,7 @@ export default function RequerimentoInspecaoSaudeScreen() {
   const [receberComunicacao, setReceberComunicacao] = useState<'SIM' | 'NAO'>('SIM');
   const [editandoEndereco, setEditandoEndereco] = useState<boolean>(false);
   const [loadingCep, setLoadingCep] = useState<boolean>(false);
+  const [loadingEnvio, setLoadingEnvio] = useState<boolean>(false);
 
   const [requerente, setRequerente] = useState<RequerenteState>({
     nome: 'GUILHERME SOUSA DA SILVA',
@@ -157,7 +158,7 @@ export default function RequerimentoInspecaoSaudeScreen() {
     }
   };
 
-  const handleEnviar = () => {
+  const handleEnviar = async () => {
     if (!beneficioSelecionado) {
       Alert.alert('Atenção', 'Selecione qual benefício é pretendido no requerimento.');
       return;
@@ -168,11 +169,49 @@ export default function RequerimentoInspecaoSaudeScreen() {
       return;
     }
 
-    Alert.alert(
-      'Requerimento Enviado',
-      'Seu Requerimento de Inspeção de Saúde foi registrado com sucesso no SVPM.',
-      [{ text: 'OK', onPress: () => router.back() }]
-    );
+    setLoadingEnvio(true);
+    try {
+      const payload = {
+        nip: parseInt(requerente.nip, 10),
+        nome: requerente.nome,
+        postoGraduacao: requerente.postoGraduacao,
+        quadroEspecialidade: requerente.quadroEspecialidade,
+        cep: requerente.cep,
+        logradouro: requerente.logradouro,
+        numero: requerente.numero,
+        bairro: requerente.bairro,
+        cidade: requerente.cidade,
+        complemento: requerente.complemento,
+        telefone: requerente.telefone,
+        celular: requerente.celular,
+        email: requerente.email,
+        beneficioId: beneficioSelecionado,
+        receberComunicacao: receberComunicacao,
+      };
+
+      // Altere para http://10.0.2.2:8080/pessoa/inspsaude caso esteja testando no emulador Android
+      const response = await fetch('http://localhost:8080/pessoa/inspsaude', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        Alert.alert(
+          'Requerimento Enviado',
+          'Seu Requerimento de Inspeção de Saúde foi registrado com sucesso no SVPM.',
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+      } else {
+        Alert.alert('Erro', 'Não foi possível registrar o requerimento no servidor.');
+      }
+    } catch (error) {
+      Alert.alert('Erro de Conexão', 'Verifique sua rede ou a conexão com a API.');
+    } finally {
+      setLoadingEnvio(false);
+    }
   };
 
   return (
@@ -398,8 +437,16 @@ export default function RequerimentoInspecaoSaudeScreen() {
           </View>
 
           {/* BOTÕES DE AÇÃO */}
-          <TouchableOpacity activeOpacity={0.8} style={styles.btnPrimary} onPress={handleEnviar}>
-            <Text style={styles.btnPrimaryText}>Enviar Requerimento</Text>
+          <TouchableOpacity 
+            activeOpacity={0.8} 
+            style={[styles.btnPrimary, loadingEnvio && { opacity: 0.7 }]} 
+            onPress={handleEnviar}
+            disabled={loadingEnvio}>
+            {loadingEnvio ? (
+              <ActivityIndicator color={COLORS.white} />
+            ) : (
+              <Text style={styles.btnPrimaryText}>Enviar Requerimento</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity activeOpacity={0.7} style={styles.btnSecondary} onPress={() => router.back()}>

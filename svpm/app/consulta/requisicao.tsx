@@ -2,6 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -25,34 +27,66 @@ const COLORS = {
   warningYellow: '#EF6C00',
   warningBg: '#FFF3E0',
   inputBg: '#FAFCFF',
+  greenSuccess: '#2E7D32',
+  greenBg: '#E8F5E9',
 };
+
+interface RequisicaoDTO {
+  numero: string;
+  solicitacao: string;
+  data: string;
+  status: string;
+}
 
 export default function RequisicaoScreen() {
   const [numeroRequisicao, setNumeroRequisicao] = useState('');
   const [consultaRealizada, setConsultaRealizada] = useState(false);
+  const [carregando, setCarregando] = useState(false);
 
-  // futuramente virá do banco/API
-  const [requisicao, setRequisicao] = useState({
-    numero: '2026001548',
-    status: 'Em análise',
-    solicitacao: 'Auxílio Transporte',
-    data: '10/05/2026',
-  });
+  const [requisicao, setRequisicao] = useState<RequisicaoDTO | null>(null);
 
-  const handleConsultar = () => {
-    if (!numeroRequisicao.trim()) {
-      alert('Atenção: Digite o número da requisição.');
+  const API_BASE_URL = 'http://localhost:8080/api/v1';
+
+  const handleConsultar = async () => {
+    const numLimpo = numeroRequisicao.trim();
+    if (!numLimpo) {
+      Alert.alert('Atenção', 'Digite o número da requisição.');
       return;
     }
 
-    // Simulando busca e atualização dinâmica ou exibição do resultado
-    setRequisicao((prev) => ({
-      ...prev,
-      numero: numeroRequisicao.trim(),
-    }));
-    setConsultaRealizada(true);
-    console.log(numeroRequisicao);
+    try {
+      setCarregando(true);
+      setConsultaRealizada(false);
+
+      const response = await fetch(`${API_BASE_URL}/pessoa/requisicao/${numLimpo}`);
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          Alert.alert('Não encontrado', 'Nenhuma requisição foi encontrada com este número.');
+        } else {
+          Alert.alert('Erro', 'Não foi possível consultar a requisição no servidor.');
+        }
+        setRequisicao(null);
+        setConsultaRealizada(false);
+        return;
+      }
+
+      const resultado: RequisicaoDTO = await response.json();
+      setRequisicao(resultado);
+      setConsultaRealizada(true);
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Erro', 'Falha na conexão com o servidor.');
+    } finally {
+      setCarregando(false);
+    }
   };
+
+  // Identifica a cor do status dinamicamente (se concluída, usa verde, senão amarelo/aviso)
+  const isConcluida = requisicao?.status?.toLowerCase().includes('concluída');
+  const statusBgColor = isConcluida ? COLORS.greenBg : COLORS.warningBg;
+  const statusTextColor = isConcluida ? COLORS.greenSuccess : COLORS.warningYellow;
+  const statusIconName = isConcluida ? 'checkmark-circle-outline' : 'time-outline';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -98,13 +132,18 @@ export default function RequisicaoScreen() {
             activeOpacity={0.8}
             style={styles.botaoPrimary}
             onPress={handleConsultar}
+            disabled={carregando}
           >
-            <Text style={styles.botaoPrimaryText}>Consultar</Text>
+            {carregando ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.botaoPrimaryText}>Consultar</Text>
+            )}
           </TouchableOpacity>
         </View>
 
         {/* RESULTADO */}
-        {consultaRealizada && (
+        {consultaRealizada && requisicao && (
           <>
             <View style={[styles.sectionHeaderBox, { marginTop: 10 }]}>
               <Text style={styles.sectionTitle}>Resultado da Consulta</Text>
@@ -127,14 +166,16 @@ export default function RequisicaoScreen() {
                 <Text style={styles.infoValor}>{requisicao.data}</Text>
               </View>
 
-              <View style={styles.statusContainer}>
+              <View style={[styles.statusContainer, { backgroundColor: statusBgColor }]}>
                 <Ionicons
-                  name="time-outline"
+                  name={statusIconName}
                   size={18}
-                  color={COLORS.warningYellow}
+                  color={statusTextColor}
                   style={{ marginRight: 6 }}
                 />
-                <Text style={styles.statusTexto}>Status: {requisicao.status}</Text>
+                <Text style={[styles.statusTexto, { color: statusTextColor }]}>
+                  Status: {requisicao.status}
+                </Text>
               </View>
             </View>
           </>
@@ -230,6 +271,7 @@ const styles = StyleSheet.create({
   },
   botaoPrimary: {
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: COLORS.primary,
     borderRadius: 12,
     marginTop: 18,
@@ -238,6 +280,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 4,
+    minHeight: 48,
   },
   botaoPrimaryText: {
     color: COLORS.white,
@@ -267,13 +310,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.warningBg,
     borderRadius: 10,
     marginTop: 16,
     padding: 14,
   },
   statusTexto: {
-    color: COLORS.warningYellow,
     fontSize: 13,
     fontWeight: 'bold',
     textAlign: 'center',
