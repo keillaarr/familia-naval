@@ -374,10 +374,11 @@ export default function RequerimentoInspecaoSaudeScreen() {
               />
             ))}
           </View>
+          
+            <Text style={styles.sectionHeaderTitle}>3) OBSERVAÇÕES IMPORTANTES:</Text>
 
           {/* SEÇÃO 3: OBSERVAÇÕES IMPORTANTES */}
           <View style={styles.warningBox}>
-            <Text style={styles.warningTitle}>3) OBSERVAÇÕES IMPORTANTES:</Text>
             <Text style={styles.warningItem}>
               a) Os documentos médicos e/ou hospitalares deverão ser apresentados à instrução da perícia médica no primeiro comparecimento à junta de saúde, não havendo necessidade de serem anexados a este requerimento.
             </Text>

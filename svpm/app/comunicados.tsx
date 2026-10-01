@@ -29,6 +29,7 @@ interface Comunicado {
   titulo: string;
   conteudo: string;
   tipo: 'dependentes' | 'inspecao' | 'geral';
+  lido: number;
 }
 
 export default function ComunicadosScreen() {
@@ -43,7 +44,7 @@ export default function ComunicadosScreen() {
     buscarComunicados();
   }, []);
 
-  // Função para corrigir textos corrompidos por problema de encoding (ex: "InspeÃ§Ã£o" -> "Inspeção")
+  // Função para corrigir textos corrompidos por problema de encoding
   const corrigirTexto = (texto: string) => {
     if (!texto) return '';
     try {
@@ -66,12 +67,10 @@ export default function ComunicadosScreen() {
   const buscarComunicados = async () => {
     try {
       setLoading(true);
-      // Lembre-se: se estiver testando no Expo Go físico, use o IP da sua máquina em vez de 'localhost'
       const res = await fetch(`http://localhost:8080/api/v1/comunicados/usuario/${usuarioCpfOrNip}`);
       const data: ComunicadoAPI[] = await res.json();
 
       const dadosFormatados: Comunicado[] = data.map((item) => {
-        // Formatar data de YYYY-MM-DD para DD/MM/YYYY se necessário
         let dataFormatada = item.dataDocumento;
         if (item.dataDocumento && item.dataDocumento.includes('-')) {
           const [ano, mes, dia] = item.dataDocumento.split('-');
@@ -80,12 +79,11 @@ export default function ComunicadosScreen() {
 
         const assuntoCorrigido = corrigirTexto(item.assunto);
 
-        // Descobrir o tipo com base no assunto corrigido
         let tipo: Comunicado['tipo'] = 'geral';
         const assuntoLower = assuntoCorrigido.toLowerCase();
         if (assuntoLower.includes('dependente')) {
           tipo = 'dependentes';
-        } else if (assuntoLower.includes('saúde') || assuntoLower.includes('inspeção')) {
+        } else if (assuntoLower.includes('saúde') || assuntoLower.includes('inspecao')) {
           tipo = 'inspecao';
         }
 
@@ -94,15 +92,42 @@ export default function ComunicadosScreen() {
           data: dataFormatada || 'Data não informada',
           titulo: assuntoCorrigido,
           tipo: tipo,
-          conteudo: corrigirTexto(`Documento vinculado: ${item.nomeArquivo} (Status de leitura: ${item.lido === 1 ? 'Lido' : 'Não lido'})`),
+          conteudo: corrigirTexto(`Documento vinculado: ${item.nomeArquivo}`),
+          lido: item.lido,
         };
       });
+
+      // Ordena do mais atual para o mais antigo utilizando o ID decrescente
+      dadosFormatados.sort((a, b) => Number(b.id) - Number(a.id));
 
       setComunicados(dadosFormatados);
     } catch (error) {
       console.error('Erro ao buscar comunicados:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Função que dispara o PUT para marcar como lido na API
+  const handleVisualizarComunicado = async (item: Comunicado) => {
+    setComunicadoSelecionado(item);
+
+    // Se já estiver lido (1), não precisa chamar a API novamente
+    if (item.lido === 1) return;
+
+    try {
+      const res = await fetch(`http://localhost:8080/api/v1/comunicados/${item.id}/ler`, {
+        method: 'PUT',
+      });
+
+      if (res.ok) {
+        // Atualiza o estado local para refletir que o item agora está lido
+        setComunicados((prev) =>
+          prev.map((c) => (c.id === item.id ? { ...c, lido: 1 } : c))
+        );
+      }
+    } catch (error) {
+      console.error('Erro ao marcar comunicado como lido:', error);
     }
   };
 
@@ -152,16 +177,35 @@ export default function ComunicadosScreen() {
           </View>
         ) : (
           comunicados.map((item) => (
-            <View key={item.id} style={styles.cardItem}>
+            <View 
+              key={item.id} 
+              style={[
+                styles.cardItem, 
+                item.lido === 0 && styles.cardNaoLido
+              ]}
+            >
               <View style={styles.itemTopo}>
                 <View style={styles.iconeBadge}>
                   <Ionicons name={getIconeNome(item.tipo)} size={20} color={COLORS.primary} />
                 </View>
 
                 <View style={styles.itemInfo}>
-                  <Text style={styles.itemData}>
-                    <Ionicons name="calendar-outline" size={11} color={COLORS.textMuted} /> {item.data}
-                  </Text>
+                  <View style={styles.linhaInfoSuperior}>
+                    <Text style={styles.itemData}>
+                      <Ionicons name="calendar-outline" size={11} color={COLORS.textMuted} /> {item.data}
+                    </Text>
+                    
+                    {item.lido === 0 ? (
+                      <View style={styles.badgeNovo}>
+                        <Text style={styles.badgeNovoText}>NÃO LIDO</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.badgeLido}>
+                        <Ionicons name="checkmark" size={10} color="#047857" style={{ marginRight: 2 }} />
+                        <Text style={styles.badgeLidoText}>LIDO</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={styles.itemTitulo}>{item.titulo}</Text>
                 </View>
               </View>
@@ -169,7 +213,7 @@ export default function ComunicadosScreen() {
               <TouchableOpacity
                 activeOpacity={0.8}
                 style={styles.btnVisualizar}
-                onPress={() => setComunicadoSelecionado(item)}
+                onPress={() => handleVisualizarComunicado(item)}
               >
                 <Text style={styles.btnVisualizarText}>Visualizar Comunicado</Text>
                 <Ionicons name="chevron-forward" size={14} color={COLORS.primary} style={{ marginLeft: 4 }} />
@@ -241,6 +285,7 @@ const COLORS = {
   textMuted: '#555555',
   border: '#D0DCE5',
   borderLight: '#E0E0E0',
+  accentUnread: '#FFF8F0',
 };
 
 const styles = StyleSheet.create({
@@ -313,10 +358,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 5,
   },
+  cardNaoLido: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#D97706',
+  },
   itemTopo: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
+  },
+  linhaInfoSuperior: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
   },
   iconeBadge: {
     backgroundColor: COLORS.primaryLight,
@@ -333,7 +388,30 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 12,
     fontWeight: '600',
-    marginBottom: 2,
+  },
+  badgeNovo: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  badgeNovoText: {
+    color: '#B45309',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  badgeLido: {
+    backgroundColor: '#D1FAE5',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  badgeLidoText: {
+    color: '#047857',
+    fontSize: 9,
+    fontWeight: 'bold',
   },
   itemTitulo: {
     color: COLORS.primary,
