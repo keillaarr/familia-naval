@@ -31,12 +31,12 @@ const useUserProfile = () => ({
 type TabType = 'inicio' | 'solicitacoes' | 'perfil';
 
 const SOLICITACOES_LIST = [
-  {
+ /* {
     title: 'Requerimento de Inspeção de Saúde',
     icon: 'medical',
     color: '#003366',
     route: 'requerimento-inspecao-saude',
-  },
+  }, */
   {
     title: 'BP ON-LINE',
     icon: 'file-document-outline',
