@@ -6,7 +6,7 @@ import {
   Dimensions,
   Linking,
   Modal,
-  Platform, // <-- Importado para verificar se é Web ou Mobile
+  Platform,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -28,37 +28,113 @@ const useUserProfile = () => ({
   },
 });
 
-type TabType = 'inicio' | 'solicitacoes' | 'perfil';
+type TabType = 'inicio' | 'solicitacoes' | 'links' | 'perfil';
+
+const PRINCIPAIS_SERVICOS_LIST = [
+  {
+    title: 'Consultas',
+    icon: 'search-outline',
+    iconLib: 'Ionicons',
+    color: '#003366',
+    route: 'consulta',
+  },
+  {
+    title: 'Declaração de Dependentes IR',
+    icon: 'people-outline',
+    iconLib: 'Ionicons',
+    color: '#003366',
+    url: 'https://portalcidadao.dataprev.gov.br/#/mb/r/novo-pedido/informacao/2709/declaracao-de-dependentes-para-fins-de-imposto-de-renda-retido-na-fonte',
+  },
+  {
+    title: 'Prova de Vida',
+    icon: 'shield-check-outline',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    route: 'prova-de-vida',
+  },
+  {
+    title: 'Declaração Anual Para Percepção Do Auxílio-Invalidez',
+    icon: 'file-document-edit-outline',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    route: 'auxilio-invalidez',
+  },
+];
 
 const SOLICITACOES_LIST = [
- /* {
-    title: 'Requerimento de Inspeção de Saúde',
-    icon: 'medical',
-    color: '#003366',
-    route: 'requerimento-inspecao-saude',
-  }, */
   {
-    title: 'BP ON-LINE',
-    icon: 'file-document-outline',
+    title: 'Consulta Dependentes',
+    icon: 'account-group-outline',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    route: 'consulta-dependentes',
+  },
+  {
+    title: 'Declaração de Acúmulo de Cargos Públicos',
+    icon: 'scale-balance',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    route: 'dacp',
+  },
+  {
+    title: 'Declaração Anual Para Percepção Do Auxílio-Invalidez',
+    icon: 'file-document-edit-outline',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    route: 'auxilio-invalidez',
+  },
+  {
+    title: 'Comunicados DPM',
+    icon: 'bullhorn-outline',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    route: 'comunicados',
+  },
+  {
+    title: 'Cadastro TTC',
+    icon: 'briefcase-account-outline',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    route: 'cadastro-ttc',
+  },
+];
+
+const LINKS_UTEIS_LIST = [
+  {
+    title: 'BP-Online (Contracheque)',
+    icon: 'card-account-details-outline',
+    iconLib: 'MaterialCommunityIcons',
     color: '#003366',
     url: 'https://bponline.marinha.mil.br/bponline/login',
   },
   {
-    title: 'Declaração de Dependentes IR',
-    icon: 'account-group-outline',
+    title: 'Consignado (Econsig)',
+    icon: 'bank-outline',
+    iconLib: 'MaterialCommunityIcons',
     color: '#003366',
-    badge: 'NOVO',
-    url: 'https://portalcidadao.dataprev.gov.br/#/mb/r/novo-pedido/informacao/2709/declaracao-de-dependentes-para-fins-de-imposto-de-renda-retido-na-fonte',
+    url: 'https://papem.econsigmb.com.br/mb/v3/autenticar#no-back',
   },
   {
-    title: 'Declaração de Acumulo de Cargos Públicos',
-    icon: 'scale-balance',
+    title: 'Pesquisa de Avaliação de Atendimento',
+    icon: 'clipboard-text-outline',
+    iconLib: 'MaterialCommunityIcons',
     color: '#003366',
-    route: 'dacp',
+    url: 'https://www.marinha.mil.br/svpm/form/pesquisaAtendimento',
   },
-  { title: 'Auxílio-Invalidez', icon: 'wheelchair-accessibility', color: '#003366', route: 'auxilio-invalidez' },
-  { title: 'Cadastro TTC', icon: 'briefcase-account-outline', color: '#003366', route: 'cadastro-ttc' },
-  { title: 'Comunicados', icon: 'bullhorn-outline', color: '#003366', route: 'comunicados' },
+  {
+    title: 'Abrigo do Marinheiro',
+    icon: 'home-heart',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    url: 'https://www.abrigo.org.br/',
+  },
+  {
+    title: 'Identidade Digital',
+    icon: 'card-bulleted-outline',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    url: 'https://websitesvpm.marinha.mil.br/links',
+  },
 ];
 
 export default function FamiliaNavalScreen() {
@@ -75,10 +151,8 @@ export default function FamiliaNavalScreen() {
   }) => {
     if (item.url) {
       if (Platform.OS === 'web') {
-        // Se estiver rodando no navegador web, abre em uma nova aba
-        window.open(item.url, '_blank');
+        (window as any).open(item.url, '_blank');
       } else {
-        // Comportamento padrão para aplicativos móveis (Android/iOS)
         try {
           const supported = await Linking.canOpenURL(item.url);
           if (supported) {
@@ -111,7 +185,6 @@ export default function FamiliaNavalScreen() {
       case 'inicio':
         return (
           <>
-            {/* Card de Saudação */}
             <View style={styles.welcomeCard}>
               <View style={styles.welcomeHeader}>
                 <View style={styles.avatarCircle}>
@@ -125,62 +198,30 @@ export default function FamiliaNavalScreen() {
               </View>
             </View>
 
-            {/* Principais Serviços */}
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Principais Serviços</Text>
-                <TouchableOpacity onPress={() => setActiveTab('solicitacoes')}>
-                  <Text style={styles.seeAllText}>Ver todos</Text>
-                </TouchableOpacity>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-                {[
-                  {
-                    title: 'BP ON-LINE',
-                    icon: 'document-text-outline',
-                    color: '#003366',
-                    url: 'https://bponline.marinha.mil.br/bponline/login',
-                  },
-                  {
-                    title: 'Consultas',
-                    icon: 'search-outline',
-                    color: '#003366',
-                    route: 'consulta',
-                  },
-                  {
-                    title: 'Consultas Dependentes',
-                    icon: 'search-outline',
-                    color: '#003366',
-                    route: 'consulta-dependentes',
-                  },
-                 {
-                    title: 'Dados Cadastrais',
-                    icon: 'person-outline',
-                    color: '#003366',
-                    route: 'dados',
-                  }, 
-                  {
-                    title: 'Declaração de Dependentes IR',
-                    icon: 'people-outline',
-                    color: '#003366',
-                    url: 'https://portalcidadao.dataprev.gov.br/#/mb/r/novo-pedido/informacao/2709/declaracao-de-dependentes-para-fins-de-imposto-de-renda-retido-na-fonte',
-                  },
-                ].map((item, index) => (
+                {PRINCIPAIS_SERVICOS_LIST.map((item, index) => (
                   <TouchableOpacity
                     key={index}
                     style={styles.shortcutCard}
                     onPress={() => handleAction(item)}
                   >
-                    <View style={[styles.shortcutIconBg, { backgroundColor: '#e6f2ff' }]}>
-                      <Ionicons name={item.icon as any} size={24} color={item.color} />
+                    <View style={[styles.shortcutIconBg, { backgroundColor: '#f0f4f8' }]}>
+                      {item.iconLib === 'MaterialCommunityIcons' ? (
+                        <MaterialCommunityIcons name={item.icon as any} size={24} color={item.color} />
+                      ) : (
+                        <Ionicons name={item.icon as any} size={24} color={item.color} />
+                      )}
                     </View>
-                    <Text style={styles.shortcutText}>{item.title}</Text>
+                    <Text style={styles.shortcutText} numberOfLines={3}>{item.title}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
 
-            {/* Grid de Solicitações */}
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionTitle}>Serviços</Text>
               <View style={styles.gridContainer}>
@@ -190,13 +231,44 @@ export default function FamiliaNavalScreen() {
                     style={styles.gridItem}
                     onPress={() => handleAction(item)}
                   >
-                    {item.badge && (
+                    {(item as any).badge && (
                       <View style={styles.gridBadge}>
-                        <Text style={styles.badgeNewText}>{item.badge}</Text>
+                        <Text style={styles.badgeNewText}>{(item as any).badge}</Text>
                       </View>
                     )}
                     <View style={styles.gridIconBg}>
-                      <MaterialCommunityIcons name={item.icon as any} size={26} color={item.color} />
+                      {item.iconLib === 'MaterialCommunityIcons' ? (
+                        <MaterialCommunityIcons name={item.icon as any} size={26} color={item.color} />
+                      ) : (
+                        <Ionicons name={item.icon as any} size={26} color={item.color} />
+                      )}
+                    </View>
+                    <Text style={styles.gridText} numberOfLines={2}>{item.title}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Links Úteis</Text>
+                <TouchableOpacity onPress={() => setActiveTab('links')}>
+                  <Text style={styles.seeAllText}>Ver todos</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.gridContainer}>
+                {LINKS_UTEIS_LIST.slice(0, 4).map((item, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.gridItem}
+                    onPress={() => handleAction(item)}
+                  >
+                    <View style={styles.gridIconBg}>
+                      {item.iconLib === 'MaterialCommunityIcons' ? (
+                        <MaterialCommunityIcons name={item.icon as any} size={26} color={item.color} />
+                      ) : (
+                        <Ionicons name={item.icon as any} size={26} color={item.color} />
+                      )}
                     </View>
                     <Text style={styles.gridText} numberOfLines={2}>{item.title}</Text>
                   </TouchableOpacity>
@@ -209,7 +281,7 @@ export default function FamiliaNavalScreen() {
       case 'solicitacoes':
         return (
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Todas as Solicitações</Text>
+            <Text style={styles.sectionTitle}>Todos os Serviços</Text>
             <Text style={styles.sectionSubtitle}>Selecione o serviço pretendido</Text>
             <View style={styles.gridTwoColumnsContainer}>
               {SOLICITACOES_LIST.map((item, index) => (
@@ -218,13 +290,45 @@ export default function FamiliaNavalScreen() {
                   style={styles.gridTwoColumnsItem}
                   onPress={() => handleAction(item)}
                 >
-                  {item.badge && (
+                  {(item as any).badge && (
                     <View style={styles.gridBadge}>
-                      <Text style={styles.badgeNewText}>{item.badge}</Text>
+                      <Text style={styles.badgeNewText}>{(item as any).badge}</Text>
                     </View>
                   )}
                   <View style={styles.gridIconBg}>
-                    <MaterialCommunityIcons name={item.icon as any} size={28} color={item.color} />
+                    {item.iconLib === 'MaterialCommunityIcons' ? (
+                      <MaterialCommunityIcons name={item.icon as any} size={28} color={item.color} />
+                    ) : (
+                      <Ionicons name={item.icon as any} size={28} color={item.color} />
+                    )}
+                  </View>
+                  <Text style={styles.gridTwoColumnsText} numberOfLines={2}>
+                    {item.title}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        );
+
+      case 'links':
+        return (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Links Úteis da Marinha</Text>
+            <Text style={styles.sectionSubtitle}>Acesse os portais e sistemas externos</Text>
+            <View style={styles.gridTwoColumnsContainer}>
+              {LINKS_UTEIS_LIST.map((item, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.gridTwoColumnsItem}
+                  onPress={() => handleAction(item)}
+                >
+                  <View style={styles.gridIconBg}>
+                    {item.iconLib === 'MaterialCommunityIcons' ? (
+                      <MaterialCommunityIcons name={item.icon as any} size={28} color={item.color} />
+                    ) : (
+                      <Ionicons name={item.icon as any} size={28} color={item.color} />
+                    )}
                   </View>
                   <Text style={styles.gridTwoColumnsText} numberOfLines={2}>
                     {item.title}
@@ -251,7 +355,6 @@ export default function FamiliaNavalScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#003366" />
 
-      {/* Header Fixo */}
       <View style={styles.headerBar}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => setDrawerVisible(true)} style={styles.drawerButton}>
@@ -275,12 +378,10 @@ export default function FamiliaNavalScreen() {
         </View>
       </View>
 
-      {/* Conteúdo Dinâmico */}
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         {renderContent()}
       </ScrollView>
 
-      {/* Drawer / Menu Lateral */}
       <Modal visible={drawerVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.drawerContainer}>
@@ -302,7 +403,8 @@ export default function FamiliaNavalScreen() {
             <ScrollView style={{ padding: 16 }}>
               {[
                 { label: 'Início', icon: 'home-outline', tab: 'inicio' as TabType },
-                { label: 'Minhas Solicitações', icon: 'document-text-outline', tab: 'solicitacoes' as TabType },
+                { label: 'Serviços', icon: 'document-text-outline', tab: 'solicitacoes' as TabType },
+                { label: 'Links Úteis', icon: 'link-outline', tab: 'links' as TabType },
                 {
                   label: 'Dados do Perfil',
                   icon: 'person-outline',
@@ -337,11 +439,11 @@ export default function FamiliaNavalScreen() {
         </View>
       </Modal>
 
-      {/* Barra de Navegação Inferior */}
       <View style={styles.bottomBar}>
         {[
           { key: 'inicio', label: 'Início', icon: 'home' },
-          { key: 'solicitacoes', label: 'Solicitações', icon: 'list' },
+          { key: 'solicitacoes', label: 'Serviços', icon: 'list' },
+          { key: 'links', label: 'Links', icon: 'link' },
           { key: 'perfil', label: 'Perfil', icon: 'person' },
         ].map((tab) => {
           const isActive = activeTab === tab.key;
@@ -391,9 +493,9 @@ const styles = StyleSheet.create({
   sectionSubtitle: { fontSize: 12, color: '#666', marginBottom: 12 },
   seeAllText: { color: '#003366', fontWeight: '600', fontSize: 13 },
   horizontalScroll: { paddingRight: 16 },
-  shortcutCard: { width: 105, backgroundColor: '#fff', borderRadius: 14, padding: 12, marginRight: 12, alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
+  shortcutCard: { width: 110, backgroundColor: '#fff', borderRadius: 14, padding: 10, marginRight: 12, alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
   shortcutIconBg: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  shortcutText: { fontSize: 12, fontWeight: '600', color: '#333', textAlign: 'center' },
+  shortcutText: { fontSize: 11, fontWeight: '600', color: '#333', textAlign: 'center', lineHeight: 14 },
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   gridItem: { width: (width - 44) / 3, backgroundColor: '#fff', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 6, alignItems: 'center', marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
   gridTwoColumnsContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
@@ -407,7 +509,7 @@ const styles = StyleSheet.create({
   tabPlaceholderTitle: { fontSize: 18, fontWeight: 'bold', color: '#003366', marginTop: 12 },
   tabPlaceholderSub: { fontSize: 13, color: '#666', textAlign: 'center', marginTop: 6 },
   modalOverlay: { flex: 1, flexDirection: 'row' },
-  drawerContainer: { width: '75%', backgroundColor: '#fff', height: '100%', elevation: 10 },
+  drawerContainer: { width: '75%', maxWidth: 320, backgroundColor: '#fff', height: '100%', elevation: 10 },
   drawerHeader: { backgroundColor: '#003366', padding: 20, paddingTop: 45, flexDirection: 'row', alignItems: 'center' },
   drawerAvatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#1e4d7a', alignItems: 'center', justifyContent: 'center' },
   drawerUserName: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
