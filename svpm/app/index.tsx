@@ -1,5 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { Asset } from 'expo-asset';
 import React, { useState } from 'react';
 import {
   Alert,
@@ -17,6 +18,13 @@ import {
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
+
+// Importação dos assets locais de documentos PDF
+import bemVindoReservaPdf from '../assets/documents/bemvindoreserva.pdf';
+import cartaServicoPdf from '../assets/documents/cartaservico.pdf';
+import jvpPdf from '../assets/documents/JVP60EDICAO.pdf';
+import pensaoCivilPdf from '../assets/documents/pensaocivil.pdf';
+import pensaoMilitarPdf from '../assets/documents/pensaomilitar.pdf';
 
 const useUserProfile = () => ({
   user: {
@@ -401,33 +409,88 @@ export default function FamiliaNavalScreen() {
             </View>
 
             <ScrollView style={{ padding: 16 }}>
+              {/* Início */}
+              <TouchableOpacity
+                style={styles.drawerItem}
+                onPress={() => {
+                  setActiveTab('inicio');
+                  setDrawerVisible(false);
+                }}
+              >
+                <Ionicons name="home-outline" size={22} color="#003366" style={{ width: 30 }} />
+                <Text style={styles.drawerItemText}>Início</Text>
+              </TouchableOpacity>
+
+              {/* Seção: Informações Pessoais */}
+              <Text style={styles.drawerSectionTitle}>Informações Pessoais</Text>
               {[
-                { label: 'Início', icon: 'home-outline', tab: 'inicio' as TabType },
-                { label: 'Serviços', icon: 'document-text-outline', tab: 'solicitacoes' as TabType },
-                { label: 'Links Úteis', icon: 'link-outline', tab: 'links' as TabType },
-                {
-                  label: 'Dados do Perfil',
-                  icon: 'person-outline',
-                  action: () => {
-                    setDrawerVisible(false);
-                    navigation.navigate('cadastrais');
-                  },
-                },
+                { label: 'Meus Dados', icon: 'person-outline', route: 'dados-pessoais' },
+                { label: 'Meus Dependentes', icon: 'people-outline', route: 'consulta-dependentes' },
+                { label: 'Notificações', icon: 'notifications-outline', action: () => Alert.alert('Notificações', 'Sem novas notificações.') },
               ].map((item, idx) => (
                 <TouchableOpacity
-                  key={idx}
-                  style={styles.drawerItem}
+                  key={`pessoal-${idx}`}
+                  style={[styles.drawerItem, styles.drawerSubItem]}
                   onPress={() => {
+                    setDrawerVisible(false);
                     if (item.action) {
                       item.action();
-                    } else if (item.tab) {
-                      setActiveTab(item.tab);
-                      setDrawerVisible(false);
+                    } else if (item.route) {
+                      navigation.navigate(item.route);
                     }
                   }}
                 >
-                  <Ionicons name={item.icon as any} size={22} color="#003366" style={{ width: 30 }} />
-                  <Text style={styles.drawerItemText}>{item.label}</Text>
+                  <Ionicons name={item.icon as any} size={20} color="#003366" style={{ width: 30 }} />
+                  <Text style={styles.drawerSubItemText}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+
+              {/* Seção: Informativos */}
+              <Text style={styles.drawerSectionTitle}>Informativos</Text>
+              {[
+                { label: 'Carta de Serviço', icon: 'document-text-outline', asset: cartaServicoPdf },
+                { label: 'Bem vindo a Reserva', icon: 'ribbon-outline', asset: bemVindoReservaPdf },
+                { label: 'JVP', icon: 'newspaper-outline', asset: jvpPdf },
+                { label: 'Guia Rapido de Pensão Civil', icon: 'book-outline', asset: pensaoCivilPdf },
+                { label: 'Guia Rapido de Pensão Militar', icon: 'book-outline', asset: pensaoMilitarPdf },
+              ].map((item, idx) => (
+                <TouchableOpacity
+                  key={`info-${idx}`}
+                  style={[styles.drawerItem, styles.drawerSubItem]}
+                  onPress={async () => {
+                    setDrawerVisible(false);
+                    try {
+                      const asset = Asset.fromModule(item.asset);
+                      await asset.downloadAsync();
+                      if (asset.uri) {
+                        handleAction({ title: item.label, url: asset.uri });
+                      }
+                    } catch (error) {
+                      Alert.alert('Erro', 'Não foi possível abrir o arquivo PDF.');
+                    }
+                  }}
+                >
+                  <Ionicons name={item.icon as any} size={20} color="#003366" style={{ width: 30 }} />
+                  <Text style={styles.drawerSubItemText}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+
+              {/* Seção: Mídias Sociais */}
+              <Text style={styles.drawerSectionTitle}>Mídias Sociais</Text>
+              {[
+                { label: 'Telegram', icon: 'paper-plane-outline', url: 'https://t.me/marinhadobrasil' },
+                { label: 'Canal de Whatsapp', icon: 'logo-whatsapp', url: 'https://whatsapp.com' },
+              ].map((item, idx) => (
+                <TouchableOpacity
+                  key={`social-${idx}`}
+                  style={[styles.drawerItem, styles.drawerSubItem]}
+                  onPress={() => {
+                    setDrawerVisible(false);
+                    handleAction({ title: item.label, url: item.url });
+                  }}
+                >
+                  <Ionicons name={item.icon as any} size={20} color="#003366" style={{ width: 30 }} />
+                  <Text style={styles.drawerSubItemText}>{item.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -514,8 +577,11 @@ const styles = StyleSheet.create({
   drawerAvatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#1e4d7a', alignItems: 'center', justifyContent: 'center' },
   drawerUserName: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
   drawerUserSub: { color: '#b0c4de', fontSize: 11, marginTop: 2 },
-  drawerItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  drawerItemText: { fontSize: 15, color: '#333', fontWeight: '500' },
+  drawerItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  drawerItemText: { fontSize: 15, color: '#333', fontWeight: 'bold' },
+  drawerSectionTitle: { fontSize: 12, fontWeight: '700', color: '#888', marginTop: 16, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  drawerSubItem: { paddingLeft: 10, borderBottomWidth: 0 },
+  drawerSubItemText: { fontSize: 14, color: '#444', fontWeight: '500' },
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 65, backgroundColor: '#fff', flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#e0e0e0', elevation: 8, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 },
   bottomBarItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   bottomBarText: { fontSize: 11, color: '#666', marginTop: 3 },

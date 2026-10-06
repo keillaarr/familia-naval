@@ -1,133 +1,361 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { Asset } from 'expo-asset';
+import React, { useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
+  Dimensions,
+  Linking,
+  Modal,
+  Platform,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 
-export default function AuxilioInvalidezScreen() {
-  const [exerceAtividade, setExerceAtividade] = useState<boolean>(false);
-  const [cienteTermos, setCienteTermos] = useState<boolean>(false);
-  const [loadingCep, setLoadingCep] = useState<boolean>(false);
-  const [loadingDadosBanco, setLoadingDadosBanco] = useState<boolean>(true);
-  const [editandoEndereco, setEditandoEndereco] = useState<boolean>(false);
+const { width } = Dimensions.get('window');
 
-  const [form, setForm] = useState({
-    cep: '',
-    endereco: '',
-    bairro: '',
-    cidade: '',
-    uf: '',
-    telefone: '',
-    email: '',
-  });
+// Importação dos assets locais de documentos PDF usando rotas absolutas/alias ou caminhos corrigidos se necessário
+import bemVindoReservaPdf from '../../assets/documents/bemvindoreserva.pdf';
+import cartaServicoPdf from '../../assets/documents/cartaservico.pdf';
+import jvpPdf from '../../assets/documents/JVP60EDICAO.pdf';
+import pensaoCivilPdf from '../../assets/documents/pensaocivil.pdf';
+import pensaoMilitarPdf from '../../assets/documents/pensaomilitar.pdf';
 
-  useEffect(() => {
-    const carregarDadosDoBanco = async () => {
-      try {
-        setTimeout(() => {
-          setForm({
-            cep: '21041-190',
-            endereco: 'Rua Engenheiro Artur Moura, 456, BL6 AP405',
-            bairro: 'Bonsucesso',
-            cidade: 'Rio de Janeiro',
-            uf: 'RJ',
-            telefone: '(21) 98032-4930',
-            email: 'usuario@marinha.mil.br',
-          });
-          setLoadingDadosBanco(false);
-        }, 800);
-      } catch (error) {
-        setLoadingDadosBanco(false);
-      }
-    };
+const useUserProfile = () => ({
+  user: {
+    nomeCompleto: 'DESENVOLVEDORA SVPM',
+    nomeExibição: 'Equipe Técnica',
+    nip: '00000000',
+    vinculo: 'Desenvolvimento / Suporte',
+    avatarInitials: 'DS',
+  },
+});
 
-    carregarDadosDoBanco();
-  }, []);
+type TabType = 'inicio' | 'solicitacoes' | 'links' | 'perfil';
 
-  const handleChange = (field: string, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
+const PRINCIPAIS_SERVICOS_LIST = [
+  {
+    title: 'Consultas',
+    icon: 'search-outline',
+    iconLib: 'Ionicons',
+    color: '#003366',
+    route: 'consulta',
+  },
+  {
+    title: 'Declaração de Dependentes IR',
+    icon: 'people-outline',
+    iconLib: 'Ionicons',
+    color: '#003366',
+    url: 'https://portalcidadao.dataprev.gov.br/#/mb/r/novo-pedido/informacao/2709/declaracao-de-dependentes-para-fins-de-imposto-de-renda-retido-na-fonte',
+  },
+  {
+    title: 'Prova de Vida',
+    icon: 'shield-check-outline',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    route: 'prova-de-vida',
+  },
+  {
+    title: 'Declaração Anual Para Percepção Do Auxílio-Invalidez',
+    icon: 'file-document-edit-outline',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    route: 'auxilio-invalidez',
+  },
+];
 
-  const handlePhoneChange = (value: string) => {
-    const raw = value.replace(/\D/g, '');
-    let formatted = raw;
+const SOLICITACOES_LIST = [
+  {
+    title: 'Consulta Dependentes',
+    icon: 'account-group-outline',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    route: 'consulta-dependentes',
+  },
+  {
+    title: 'Declaração de Acúmulo de Cargos Públicos',
+    icon: 'scale-balance',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    route: 'dacp',
+  },
+  {
+    title: 'Declaração Anual Para Percepção Do Auxílio-Invalidez',
+    icon: 'file-document-edit-outline',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    route: 'auxilio-invalidez',
+  },
+  {
+    title: 'Comunicados DPM',
+    icon: 'bullhorn-outline',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    route: 'comunicados',
+  },
+  {
+    title: 'Cadastro TTC',
+    icon: 'briefcase-account-outline',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    route: 'cadastro-ttc',
+  },
+];
 
-    if (raw.length > 10) {
-      formatted = `(${raw.slice(0, 2)}) ${raw.slice(2, 7)}-${raw.slice(7, 11)}`;
-    } else if (raw.length > 6) {
-      formatted = `(${raw.slice(0, 2)}) ${raw.slice(2, 6)}-${raw.slice(6, 10)}`;
-    } else if (raw.length > 2) {
-      formatted = `(${raw.slice(0, 2)}) ${raw.slice(2)}`;
-    } else if (raw.length > 0) {
-      formatted = `(${raw}`;
-    }
+const LINKS_UTEIS_LIST = [
+  {
+    title: 'BP-Online (Contracheque)',
+    icon: 'card-account-details-outline',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    url: 'https://bponline.marinha.mil.br/bponline/login',
+  },
+  {
+    title: 'Consignado (Econsig)',
+    icon: 'bank-outline',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    url: 'https://papem.econsigmb.com.br/mb/v3/autenticar#no-back',
+  },
+  {
+    title: 'Pesquisa de Avaliação de Atendimento',
+    icon: 'clipboard-text-outline',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    url: 'https://www.marinha.mil.br/svpm/form/pesquisaAtendimento',
+  },
+  {
+    title: 'Abrigo do Marinheiro',
+    icon: 'home-heart',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    url: 'https://www.abrigo.org.br/',
+  },
+  {
+    title: 'Identidade Digital',
+    icon: 'card-bulleted-outline',
+    iconLib: 'MaterialCommunityIcons',
+    color: '#003366',
+    url: 'https://websitesvpm.marinha.mil.br/links',
+  },
+];
 
-    handleChange('telefone', formatted);
-  };
+export default function FamiliaNavalScreen() {
+  const navigation = useNavigation<any>();
+  const { user } = useUserProfile();
+  const [activeTab, setActiveTab] = useState<TabType>('inicio');
+  const [drawerVisible, setDrawerVisible] = useState(false);
 
-  const handleCepChange = async (value: string) => {
-    const rawCep = value.replace(/\D/g, '');
-    let formattedCep = rawCep;
-    if (rawCep.length > 5) {
-      formattedCep = `${rawCep.slice(0, 5)}-${rawCep.slice(5, 8)}`;
-    }
-    handleChange('cep', formattedCep);
-
-    if (rawCep.length === 8) {
-      setLoadingCep(true);
-      try {
-        const response = await fetch(`https://viacep.com.br/ws/${rawCep}/json/`);
-        const data = await response.json();
-        if (!data.erro) {
-          setForm((prev) => ({
-            ...prev,
-            endereco: data.logradouro || prev.endereco,
-            bairro: data.bairro || prev.bairro,
-            cidade: data.localidade || prev.cidade,
-            uf: data.uf || prev.uf,
-          }));
+  const handleAction = async (item: {
+    title: string;
+    url?: string;
+    targetTab?: TabType;
+    route?: string;
+  }) => {
+    if (item.url) {
+      if (Platform.OS === 'web') {
+        (window as any).open(item.url, '_blank');
+      } else {
+        try {
+          const supported = await Linking.canOpenURL(item.url);
+          if (supported) {
+            await Linking.openURL(item.url);
+          } else {
+            Alert.alert('Aviso', `Não foi possível abrir o link: ${item.url}`);
+          }
+        } catch (error) {
+          Alert.alert('Erro', 'Ocorreu um erro ao tentar abrir o link.');
         }
-      } catch (e) {
-        // Ignora erro de rede silenciosamente
-      } finally {
-        setLoadingCep(false);
       }
+    } else if (item.route) {
+      try {
+        navigation.navigate(item.route);
+      } catch (error) {
+        Alert.alert(
+          'Erro de Navegação',
+          `A rota "${item.route}" não foi registrada no Navigator ou o hook não alcançou o Stack.`
+        );
+      }
+    } else if (item.targetTab) {
+      setActiveTab(item.targetTab);
+    } else {
+      Alert.alert(item.title, `Acessando módulo de ${item.title}...`);
     }
   };
 
-  const handleEnviar = () => {
-    if (!form.cep || !form.endereco || !form.cidade || !form.telefone) {
-      Alert.alert('Campos Obrigatórios', 'Por favor, preencha os dados de endereço e telefone.');
-      return;
-    }
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'inicio':
+        return (
+          <>
+            <View style={styles.welcomeCard}>
+              <View style={styles.welcomeHeader}>
+                <View style={styles.avatarCircle}>
+                  <Text style={styles.avatarText}>{user.avatarInitials}</Text>
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.welcomeSubtitle}>Órgão: SVPM</Text>
+                  <Text style={styles.welcomeTitle}>{user.nomeCompleto}</Text>
+                  <Text style={styles.nipText}>Identificação: {user.vinculo}</Text>
+                </View>
+              </View>
+            </View>
 
-    if (!cienteTermos) {
-      Alert.alert('Atenção', 'Você deve confirmar estar ciente dos termos da declaração antes de enviar.');
-      return;
-    }
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Principais Serviços</Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
+                {PRINCIPAIS_SERVICOS_LIST.map((item, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.shortcutCard}
+                    onPress={() => handleAction(item)}
+                  >
+                    <View style={[styles.shortcutIconBg, { backgroundColor: '#f0f4f8' }]}>
+                      {item.iconLib === 'MaterialCommunityIcons' ? (
+                        <MaterialCommunityIcons name={item.icon as any} size={24} color={item.color} />
+                      ) : (
+                        <Ionicons name={item.icon as any} size={24} color={item.color} />
+                      )}
+                    </View>
+                    <Text style={styles.shortcutText} numberOfLines={3}>{item.title}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
 
-    if (exerceAtividade) {
-      Alert.alert(
-        'Declaração Registrada',
-        'Sua declaração indicando o exercício de atividade remunerada foi enviada. O SVPM analisará as informações prestadas.',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
-    } else {
-      Alert.alert(
-        'Declaração Enviada',
-        'Sua Declaração Anual de Auxílio-Invalidez foi transmitida com sucesso.',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Serviços</Text>
+              <View style={styles.gridContainer}>
+                {SOLICITACOES_LIST.map((item, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.gridItem}
+                    onPress={() => handleAction(item)}
+                  >
+                    {(item as any).badge && (
+                      <View style={styles.gridBadge}>
+                        <Text style={styles.badgeNewText}>{(item as any).badge}</Text>
+                      </View>
+                    )}
+                    <View style={styles.gridIconBg}>
+                      {item.iconLib === 'MaterialCommunityIcons' ? (
+                        <MaterialCommunityIcons name={item.icon as any} size={26} color={item.color} />
+                      ) : (
+                        <Ionicons name={item.icon as any} size={26} color={item.color} />
+                      )}
+                    </View>
+                    <Text style={styles.gridText} numberOfLines={2}>{item.title}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Links Úteis</Text>
+                <TouchableOpacity onPress={() => setActiveTab('links')}>
+                  <Text style={styles.seeAllText}>Ver todos</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.gridContainer}>
+                {LINKS_UTEIS_LIST.slice(0, 4).map((item, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.gridItem}
+                    onPress={() => handleAction(item)}
+                  >
+                    <View style={styles.gridIconBg}>
+                      {item.iconLib === 'MaterialCommunityIcons' ? (
+                        <MaterialCommunityIcons name={item.icon as any} size={26} color={item.color} />
+                      ) : (
+                        <Ionicons name={item.icon as any} size={26} color={item.color} />
+                      )}
+                    </View>
+                    <Text style={styles.gridText} numberOfLines={2}>{item.title}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </>
+        );
+
+      case 'solicitacoes':
+        return (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Todos os Serviços</Text>
+            <Text style={styles.sectionSubtitle}>Selecione o serviço pretendido</Text>
+            <View style={styles.gridTwoColumnsContainer}>
+              {SOLICITACOES_LIST.map((item, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.gridTwoColumnsItem}
+                  onPress={() => handleAction(item)}
+                >
+                  {(item as any).badge && (
+                    <View style={styles.gridBadge}>
+                      <Text style={styles.badgeNewText}>{(item as any).badge}</Text>
+                    </View>
+                  )}
+                  <View style={styles.gridIconBg}>
+                    {item.iconLib === 'MaterialCommunityIcons' ? (
+                      <MaterialCommunityIcons name={item.icon as any} size={28} color={item.color} />
+                    ) : (
+                      <Ionicons name={item.icon as any} size={28} color={item.color} />
+                    )}
+                  </View>
+                  <Text style={styles.gridTwoColumnsText} numberOfLines={2}>
+                    {item.title}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        );
+
+      case 'links':
+        return (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Links Úteis da Marinha</Text>
+            <Text style={styles.sectionSubtitle}>Acesse os portais e sistemas externos</Text>
+            <View style={styles.gridTwoColumnsContainer}>
+              {LINKS_UTEIS_LIST.map((item, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.gridTwoColumnsItem}
+                  onPress={() => handleAction(item)}
+                >
+                  <View style={styles.gridIconBg}>
+                    {item.iconLib === 'MaterialCommunityIcons' ? (
+                      <MaterialCommunityIcons name={item.icon as any} size={28} color={item.color} />
+                    ) : (
+                      <Ionicons name={item.icon as any} size={28} color={item.color} />
+                    )}
+                  </View>
+                  <Text style={styles.gridTwoColumnsText} numberOfLines={2}>
+                    {item.title}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        );
+
+      case 'perfil':
+        return (
+          <View style={styles.tabPlaceholderContainer}>
+            <Ionicons name="person-circle-outline" size={56} color="#003366" />
+            <Text style={styles.tabPlaceholderTitle}>{user.nomeCompleto}</Text>
+            <Text style={styles.tabPlaceholderSub}>Vínculo: {user.vinculo}</Text>
+            <Text style={styles.tabPlaceholderSub}>Perfil de acesso em ambiente integrado</Text>
+          </View>
+        );
     }
   };
 
@@ -135,487 +363,227 @@ export default function AuxilioInvalidezScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#003366" />
 
-      {/* Header Fixo Padronizado Família Naval */}
       <View style={styles.headerBar}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          <TouchableOpacity onPress={() => setDrawerVisible(true)} style={styles.drawerButton}>
+            <Ionicons name="menu" size={26} color="#fff" />
           </TouchableOpacity>
           <View>
             <Text style={styles.headerSubtitle}>FAMÍLIA NAVAL</Text>
-            <Text style={styles.headerTitle}>Auxílio-Invalidez</Text>
+            <Text style={styles.headerTitle}>SVPM</Text>
           </View>
         </View>
-        <Ionicons name="medkit-outline" size={20} color="#B0C4DE" />
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.headerIconBtn} onPress={() => Alert.alert('Notificações', 'Sem novas notificações.')}>
+            <Ionicons name="notifications-outline" size={22} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerIconBtn}
+            onPress={() => Alert.alert('Sair', 'Sessão encerrada.')}
+          >
+            <Ionicons name="log-out-outline" size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* CARD PRINCIPAL */}
-        <View style={styles.cardItem}>
-          <View style={styles.docHeaderBadge}>
-            <Ionicons name="document-text-outline" size={22} color={COLORS.primary} />
-            <Text style={styles.docTitle}>
-              DECLARAÇÃO ANUAL PARA PERCEPÇÃO DO AUXÍLIO-INVALIDEZ
-            </Text>
-          </View>
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+        {renderContent()}
+      </ScrollView>
 
-          <Text style={styles.declarationText}>
-            Eu, <Text style={styles.boldText}>SO GUILHERME SOUSA DA SILVA</Text>, portador(a) do NIP{' '}
-            <Text style={styles.boldText}>85856967</Text>, CPF{' '}
-            <Text style={styles.boldText}>00000028797</Text>, recebendo a Parcela de Auxílio-Invalidez por
-            intermédio do SERVIÇO DE VETERANOS E PENSIONISTAS DA MARINHA, declaro, para fins do artigo 78 do
-            DECRETO nº. 4.307 de 18 de julho de 2002, que:
-          </Text>
-
-          {/* PERGUNTA CHAVE (SEGMENTED BUTTONS) */}
-          <View style={styles.questionBox}>
-            <Text style={styles.questionText}>
-              Exerce atividade remunerada pública ou privada?
-            </Text>
-            <View style={styles.segmentedContainer}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                style={[styles.segmentBtn, !exerceAtividade && styles.segmentActiveNo]}
-                onPress={() => setExerceAtividade(false)}>
-                <Text style={[styles.segmentText, !exerceAtividade && styles.segmentTextActive]}>
-                  NÃO EXERÇO
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.8}
-                style={[styles.segmentBtn, exerceAtividade && styles.segmentActiveYes]}
-                onPress={() => setExerceAtividade(true)}>
-                <Text style={[styles.segmentText, exerceAtividade && styles.segmentTextActive]}>
-                  EXERÇO
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* AVISOS LEGAIS COM CHECKBOX OBRIGATÓRIA */}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={[styles.infoBox, cienteTermos && styles.infoBoxChecked]}
-            onPress={() => setCienteTermos(!cienteTermos)}>
-            <View style={styles.checkboxRow}>
-              <View style={[styles.checkbox, cienteTermos && styles.checkboxChecked]}>
-                {cienteTermos && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+      <Modal visible={drawerVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.drawerContainer}>
+            <View style={styles.drawerHeader}>
+              <View style={styles.drawerAvatar}>
+                <Text style={styles.avatarText}>{user.avatarInitials}</Text>
               </View>
-              <Text style={styles.checkboxLabel}>Declaro que estou ciente (Obrigatório):</Text>
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={styles.drawerUserName} numberOfLines={1}>
+                  {user.nomeCompleto}
+                </Text>
+                <Text style={styles.drawerUserSub}>{user.vinculo}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setDrawerVisible(false)}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
             </View>
-            <Text style={styles.infoText}>
-              • Estou ciente de que, anualmente, deverei fazer chegar ao SVPM nova Declaração, para ratificar ou não esta situação.
-            </Text>
-            <Text style={[styles.infoText, { marginTop: 4 }]}>
-              • Estou ciente de que o não atendimento desta exigência implicará na retirada da parcela da minha remuneração mensal.
-            </Text>
-          </TouchableOpacity>
 
-          {/* CABEÇALHO DA SEÇÃO DE ENDEREÇO */}
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeader}>Dados de Contato e Endereço</Text>
+            <ScrollView style={{ padding: 16 }}>
+              {/* Início */}
+              <TouchableOpacity
+                style={styles.drawerItem}
+                onPress={() => {
+                  setActiveTab('inicio');
+                  setDrawerVisible(false);
+                }}
+              >
+                <Ionicons name="home-outline" size={22} color="#003366" style={{ width: 30 }} />
+                <Text style={styles.drawerItemText}>Início</Text>
+              </TouchableOpacity>
+
+              {/* Seção: Informações Pessoais */}
+              <Text style={styles.drawerSectionTitle}>Informações Pessoais</Text>
+              {[
+                { label: 'Meus Dados', icon: 'person-outline', route: 'dados-pessoais' },
+                { label: 'Meus Dependentes', icon: 'people-outline', route: 'consulta-dependentes' },
+                { label: 'Notificações', icon: 'notifications-outline', action: () => Alert.alert('Notificações', 'Sem novas notificações.') },
+              ].map((item, idx) => (
+                <TouchableOpacity
+                  key={`pessoal-${idx}`}
+                  style={[styles.drawerItem, styles.drawerSubItem]}
+                  onPress={() => {
+                    setDrawerVisible(false);
+                    if (item.action) {
+                      item.action();
+                    } else if (item.route) {
+                      navigation.navigate(item.route);
+                    }
+                  }}
+                >
+                  <Ionicons name={item.icon as any} size={20} color="#003366" style={{ width: 30 }} />
+                  <Text style={styles.drawerSubItemText}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+
+              {/* Seção: Informativos */}
+              <Text style={styles.drawerSectionTitle}>Informativos</Text>
+              {[
+                { label: 'Carta de Serviço', icon: 'document-text-outline', asset: cartaServicoPdf },
+                { label: 'Bem vindo a Reserva', icon: 'ribbon-outline', asset: bemVindoReservaPdf },
+                { label: 'JVP', icon: 'newspaper-outline', asset: jvpPdf },
+                { label: 'Guia Rapido de Pensão Civil', icon: 'book-outline', asset: pensaoCivilPdf },
+                { label: 'Guia Rapido de Pensão Militar', icon: 'book-outline', asset: pensaoMilitarPdf },
+              ].map((item, idx) => (
+                <TouchableOpacity
+                  key={`info-${idx}`}
+                  style={[styles.drawerItem, styles.drawerSubItem]}
+                  onPress={async () => {
+                    setDrawerVisible(false);
+                    try {
+                      const asset = Asset.fromModule(item.asset);
+                      await asset.downloadAsync();
+                      if (asset.uri) {
+                        handleAction({ title: item.label, url: asset.uri });
+                      }
+                    } catch (error) {
+                      Alert.alert('Erro', 'Não foi possível abrir o arquivo PDF.');
+                    }
+                  }}
+                >
+                  <Ionicons name={item.icon as any} size={20} color="#003366" style={{ width: 30 }} />
+                  <Text style={styles.drawerSubItemText}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+
+              {/* Seção: Mídias Sociais */}
+              <Text style={styles.drawerSectionTitle}>Mídias Sociais</Text>
+              {[
+                { label: 'Telegram', icon: 'paper-plane-outline', url: 'https://t.me/marinhadobrasil' },
+                { label: 'Canal de Whatsapp', icon: 'logo-whatsapp', url: 'https://whatsapp.com' },
+              ].map((item, idx) => (
+                <TouchableOpacity
+                  key={`social-${idx}`}
+                  style={[styles.drawerItem, styles.drawerSubItem]}
+                  onPress={() => {
+                    setDrawerVisible(false);
+                    handleAction({ title: item.label, url: item.url });
+                  }}
+                >
+                  <Ionicons name={item.icon as any} size={20} color="#003366" style={{ width: 30 }} />
+                  <Text style={styles.drawerSubItemText}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }}
+            onPress={() => setDrawerVisible(false)}
+          />
+        </View>
+      </Modal>
+
+      <View style={styles.bottomBar}>
+        {[
+          { key: 'inicio', label: 'Início', icon: 'home' },
+          { key: 'solicitacoes', label: 'Serviços', icon: 'list' },
+          { key: 'links', label: 'Links', icon: 'link' },
+          { key: 'perfil', label: 'Perfil', icon: 'person' },
+        ].map((tab) => {
+          const isActive = activeTab === tab.key;
+          return (
             <TouchableOpacity
-              activeOpacity={0.7}
-              style={styles.btnEditar}
-              onPress={() => setEditandoEndereco(!editandoEndereco)}>
+              key={tab.key}
+              style={styles.bottomBarItem}
+              onPress={() => setActiveTab(tab.key as TabType)}
+            >
               <Ionicons
-                name={editandoEndereco ? 'lock-closed-outline' : 'create-outline'}
-                size={14}
-                color={COLORS.primary}
-                style={{ marginRight: 4 }}
+                name={(isActive ? tab.icon : `${tab.icon}-outline`) as any}
+                size={22}
+                color={isActive ? '#003366' : '#666'}
               />
-              <Text style={styles.btnEditarTexto}>
-                {editandoEndereco ? 'Bloquear' : 'Editar'}
+              <Text style={[styles.bottomBarText, isActive && styles.bottomBarTextActive]}>
+                {tab.label}
               </Text>
             </TouchableOpacity>
-          </View>
-
-          {loadingDadosBanco ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
-              <Text style={styles.loadingText}>Buscando endereço cadastrado...</Text>
-            </View>
-          ) : (
-            <>
-              {/* CEP */}
-              <View style={styles.inputGroup}>
-                <View style={styles.labelRow}>
-                  <Text style={styles.label}>CEP</Text>
-                  {loadingCep && <ActivityIndicator size="small" color={COLORS.primary} />}
-                </View>
-                <TextInput
-                  style={[styles.input, !editandoEndereco && styles.inputDisabled]}
-                  placeholder="00000-000"
-                  keyboardType="numeric"
-                  maxLength={9}
-                  editable={editandoEndereco}
-                  value={form.cep}
-                  onChangeText={handleCepChange}
-                />
-              </View>
-
-              {/* ENDEREÇO */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Endereço (Rua, Nº, Apto, etc.)</Text>
-                <TextInput
-                  style={[styles.input, !editandoEndereco && styles.inputDisabled]}
-                  placeholder="Rua, Número, Complemento"
-                  editable={editandoEndereco}
-                  value={form.endereco}
-                  onChangeText={(t) => handleChange('endereco', t)}
-                />
-              </View>
-
-              {/* BAIRRO */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Bairro</Text>
-                <TextInput
-                  style={[styles.input, !editandoEndereco && styles.inputDisabled]}
-                  placeholder="Bairro"
-                  editable={editandoEndereco}
-                  value={form.bairro}
-                  onChangeText={(t) => handleChange('bairro', t)}
-                />
-              </View>
-
-              {/* CIDADE */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Cidade</Text>
-                <TextInput
-                  style={[styles.input, !editandoEndereco && styles.inputDisabled]}
-                  placeholder="Cidade"
-                  editable={editandoEndereco}
-                  value={form.cidade}
-                  onChangeText={(t) => handleChange('cidade', t)}
-                />
-              </View>
-
-              {/* UF */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>UF</Text>
-                <TextInput
-                  style={[styles.input, !editandoEndereco && styles.inputDisabled]}
-                  placeholder="RJ"
-                  maxLength={2}
-                  autoCapitalize="characters"
-                  editable={editandoEndereco}
-                  value={form.uf}
-                  onChangeText={(t) => handleChange('uf', t)}
-                />
-              </View>
-
-              {/* TELEFONE */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Telefone</Text>
-                <TextInput
-                  style={[styles.input, !editandoEndereco && styles.inputDisabled]}
-                  placeholder="(00) 00000-0000"
-                  keyboardType="phone-pad"
-                  maxLength={15}
-                  editable={editandoEndereco}
-                  value={form.telefone}
-                  onChangeText={handlePhoneChange}
-                />
-              </View>
-
-              {/* EMAIL */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>E-mail</Text>
-                <TextInput
-                  style={[styles.input, !editandoEndereco && styles.inputDisabled]}
-                  placeholder="seu@email.com"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  editable={editandoEndereco}
-                  value={form.email}
-                  onChangeText={(t) => handleChange('email', t)}
-                />
-              </View>
-            </>
-          )}
-
-          {/* AÇÕES */}
-          <TouchableOpacity activeOpacity={0.8} style={styles.btnPrimary} onPress={handleEnviar}>
-            <Text style={styles.btnPrimaryText}>Enviar Declaração</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity activeOpacity={0.7} style={styles.btnSecondary} onPress={() => router.back()}>
-            <Ionicons name="arrow-back-outline" size={16} color={COLORS.textMuted} style={{ marginRight: 6 }} />
-            <Text style={styles.btnSecondaryText}>Voltar</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+          );
+        })}
+      </View>
     </SafeAreaView>
   );
 }
 
-const COLORS = {
-  primary: '#003366',
-  primaryLight: '#EBF3FA',
-  bg: '#F5F7FA',
-  white: '#FFFFFF',
-  text: '#222222',
-  textMuted: '#555555',
-  border: '#D0DCE5',
-  borderLight: '#E0E0E0',
-};
-
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#003366',
-  },
-  headerBar: {
-    backgroundColor: '#003366',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backButton: {
-    marginRight: 12,
-  },
-  headerSubtitle: {
-    color: '#B0C4DE',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 40,
-    backgroundColor: COLORS.bg,
-    flexGrow: 1,
-  },
-  cardItem: {
-    backgroundColor: COLORS.white,
-    borderColor: COLORS.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-  },
-  docHeaderBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primaryLight,
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#C5DDF3',
-  },
-  docTitle: {
-    color: COLORS.primary,
-    fontSize: 13,
-    fontWeight: 'bold',
-    marginLeft: 10,
-    flex: 1,
-    lineHeight: 18,
-  },
-  declarationText: {
-    color: COLORS.text,
-    fontSize: 13,
-    lineHeight: 20,
-    marginBottom: 16,
-    textAlign: 'justify',
-  },
-  boldText: {
-    fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  questionBox: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 14,
-    borderColor: COLORS.borderLight,
-    borderWidth: 1,
-  },
-  questionText: {
-    color: COLORS.primary,
-    fontSize: 13,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  segmentedContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#E2E8F0',
-    borderRadius: 10,
-    padding: 4,
-  },
-  segmentBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  segmentActiveNo: {
-    backgroundColor: COLORS.primary,
-  },
-  segmentActiveYes: {
-    backgroundColor: '#D32F2F',
-  },
-  segmentText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#4A5568',
-  },
-  segmentTextActive: {
-    color: '#FFFFFF',
-  },
-  infoBox: {
-    backgroundColor: '#FFF8E1',
-    borderColor: '#FFE082',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 20,
-  },
-  infoBoxChecked: {
-    backgroundColor: '#FEF9E7',
-    borderColor: '#F6C343',
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: '#795548',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-    backgroundColor: '#FFFFFF',
-  },
-  checkboxChecked: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  checkboxLabel: {
-    color: '#5D4037',
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  infoText: {
-    color: '#5D4037',
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
-    paddingBottom: 8,
-  },
-  sectionHeader: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  btnEditar: {
-    backgroundColor: COLORS.primaryLight,
-    borderColor: '#C5DDF3',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  btnEditarTexto: {
-    color: COLORS.primary,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  loadingContainer: {
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 8,
-    color: COLORS.textMuted,
-    fontSize: 13,
-  },
-  inputGroup: {
-    marginBottom: 12,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  label: {
-    color: COLORS.text,
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  input: {
-    backgroundColor: '#FFFFFF',
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    borderWidth: 1,
-    fontSize: 14,
-    height: 44,
-    paddingHorizontal: 12,
-    color: COLORS.text,
-  },
-  inputDisabled: {
-    backgroundColor: '#F0F4F8',
-    color: COLORS.textMuted,
-    borderColor: COLORS.border,
-  },
-  btnPrimary: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  btnPrimaryText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  btnSecondary: {
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-  },
-  btnSecondaryText: {
-    color: COLORS.textMuted,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
+  safeArea: { flex: 1, backgroundColor: '#003366' },
+  headerBar: { backgroundColor: '#003366', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  drawerButton: { marginRight: 12 },
+  headerSubtitle: { color: '#b0c4de', fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },
+  headerTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  headerRight: { flexDirection: 'row', alignItems: 'center' },
+  headerIconBtn: { marginLeft: 14 },
+  container: { flex: 1, backgroundColor: '#f5f7fa' },
+  scrollContent: { paddingBottom: 100 },
+  welcomeCard: { backgroundColor: '#003366', paddingHorizontal: 20, paddingBottom: 24, paddingTop: 12, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
+  welcomeHeader: { flexDirection: 'row', alignItems: 'center' },
+  avatarCircle: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#1e4d7a', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#ffffff30' },
+  avatarText: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
+  welcomeSubtitle: { color: '#b0c4de', fontSize: 12, marginBottom: 2 },
+  welcomeTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  nipText: { color: '#e0e8f0', fontSize: 12, marginTop: 2 },
+  sectionContainer: { marginTop: 20, paddingHorizontal: 16 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#222' },
+  sectionSubtitle: { fontSize: 12, color: '#666', marginBottom: 12 },
+  seeAllText: { color: '#003366', fontWeight: '600', fontSize: 13 },
+  horizontalScroll: { paddingRight: 16 },
+  shortcutCard: { width: 110, backgroundColor: '#fff', borderRadius: 14, padding: 10, marginRight: 12, alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
+  shortcutIconBg: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  shortcutText: { fontSize: 11, fontWeight: '600', color: '#333', textAlign: 'center', lineHeight: 14 },
+  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  gridItem: { width: (width - 44) / 3, backgroundColor: '#fff', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 6, alignItems: 'center', marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
+  gridTwoColumnsContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  gridTwoColumnsItem: { width: (width - 40) / 2, backgroundColor: '#fff', borderRadius: 16, paddingVertical: 18, paddingHorizontal: 12, alignItems: 'center', marginBottom: 14, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
+  gridTwoColumnsText: { fontSize: 12.5, fontWeight: '600', color: '#333', textAlign: 'center', lineHeight: 16, marginTop: 8 },
+  gridBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: '#28a745', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4, zIndex: 1 },
+  badgeNewText: { color: '#fff', fontSize: 9, fontWeight: 'bold' },
+  gridIconBg: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#f0f4f8', alignItems: 'center', justifyContent: 'center' },
+  gridText: { fontSize: 10.5, fontWeight: '500', color: '#333', textAlign: 'center', lineHeight: 14 },
+  tabPlaceholderContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#f5f7fa' },
+  tabPlaceholderTitle: { fontSize: 18, fontWeight: 'bold', color: '#003366', marginTop: 12 },
+  tabPlaceholderSub: { fontSize: 13, color: '#666', textAlign: 'center', marginTop: 6 },
+  modalOverlay: { flex: 1, flexDirection: 'row' },
+  drawerContainer: { width: '75%', maxWidth: 320, backgroundColor: '#fff', height: '100%', elevation: 10 },
+  drawerHeader: { backgroundColor: '#003366', padding: 20, paddingTop: 45, flexDirection: 'row', alignItems: 'center' },
+  drawerAvatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#1e4d7a', alignItems: 'center', justifyContent: 'center' },
+  drawerUserName: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
+  drawerUserSub: { color: '#b0c4de', fontSize: 11, marginTop: 2 },
+  drawerItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  drawerItemText: { fontSize: 15, color: '#333', fontWeight: 'bold' },
+  drawerSectionTitle: { fontSize: 12, fontWeight: '700', color: '#888', marginTop: 16, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  drawerSubItem: { paddingLeft: 10, borderBottomWidth: 0 },
+  drawerSubItemText: { fontSize: 14, color: '#444', fontWeight: '500' },
+  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 65, backgroundColor: '#fff', flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#e0e0e0', elevation: 8, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 },
+  bottomBarItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  bottomBarText: { fontSize: 11, color: '#666', marginTop: 3 },
+  bottomBarTextActive: { color: '#003366', fontWeight: 'bold' },
 });
