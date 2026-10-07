@@ -1,9 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Asset } from 'expo-asset';
-import * as WebBrowser from 'expo-web-browser';
 import React, { useRef, useState } from 'react';
 import Pdf from 'react-native-pdf';
+import { WebView } from 'react-native-webview';
 
 import {
   Alert,
@@ -37,7 +37,7 @@ const useUserProfile = () => ({
   },
 });
 
-type TabType = 'inicio' | 'solicitacoes' | 'links' | 'perfil' | 'pdf-viewer';
+type TabType = 'inicio' | 'solicitacoes' | 'links' | 'perfil' | 'pdf-viewer' | 'webview';
 
 const PRINCIPAIS_SERVICOS_LIST = [
   {
@@ -154,6 +154,10 @@ export default function FamiliaNavalScreen() {
   const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null);
   const [currentPdfTitle, setCurrentPdfTitle] = useState<string>('Documento PDF');
 
+  // Estados para controlar a WebView de sites externos
+  const [currentWebUrl, setCurrentWebUrl] = useState<string | null>(null);
+  const [currentWebTitle, setCurrentWebTitle] = useState<string>('Portal');
+
   const horizontalScrollRef = useRef<ScrollView>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
 
@@ -191,11 +195,10 @@ export default function FamiliaNavalScreen() {
       if (Platform.OS === 'web') {
         (window as any).open(item.url, '_blank');
       } else {
-        try {
-          await WebBrowser.openBrowserAsync(item.url);
-        } catch (error) {
-          Alert.alert('Erro', 'Ocorreu um erro ao tentar abrir o link.');
-        }
+        // Abre o site diretamente na WebView interna do aplicativo
+        setCurrentWebTitle(item.title);
+        setCurrentWebUrl(item.url);
+        setActiveTab('webview');
       }
     } else if (item.route) {
       try {
@@ -233,6 +236,27 @@ export default function FamiliaNavalScreen() {
               />
             ) : (
               <Text style={{ textAlign: 'center', marginTop: 20 }}>Nenhum PDF selecionado.</Text>
+            )}
+          </View>
+        );
+
+      case 'webview':
+        return (
+          <View style={styles.pdfContainer}>
+            <View style={styles.pdfHeaderBar}>
+              <TouchableOpacity onPress={() => setActiveTab('inicio')} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="arrow-back" size={20} color="#003366" />
+                <Text style={{ color: '#003366', fontWeight: 'bold', marginLeft: 6 }}>Voltar</Text>
+              </TouchableOpacity>
+              <Text style={styles.pdfHeaderTitle} numberOfLines={1}>{currentWebTitle}</Text>
+            </View>
+            {currentWebUrl ? (
+              <WebView
+                source={{ uri: currentWebUrl }}
+                style={styles.pdfView}
+              />
+            ) : (
+              <Text style={{ textAlign: 'center', marginTop: 20 }}>Nenhum link carregado.</Text>
             )}
           </View>
         );
@@ -442,7 +466,7 @@ export default function FamiliaNavalScreen() {
       </View>
 
       <View style={styles.container}>
-        {activeTab === 'pdf-viewer' ? (
+        {activeTab === 'pdf-viewer' || activeTab === 'webview' ? (
           renderContent()
         ) : (
           <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -551,7 +575,7 @@ export default function FamiliaNavalScreen() {
         </View>
       </Modal>
 
-      {activeTab !== 'pdf-viewer' && (
+      {activeTab !== 'pdf-viewer' && activeTab !== 'webview' && (
         <View style={styles.bottomBar}>
           {[
             { key: 'inicio', label: 'Início', icon: 'home' },
