@@ -2,7 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Asset } from 'expo-asset';
 import * as WebBrowser from 'expo-web-browser';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Pdf from 'react-native-pdf';
 
 import {
@@ -21,7 +21,6 @@ import {
 
 const { width } = Dimensions.get('window');
 
-// Importação dos assets locais de documentos PDF
 import bemVindoReservaPdf from '../assets/documents/bemvindoreserva.pdf';
 import cartaServicoPdf from '../assets/documents/cartaservico.pdf';
 import jvpPdf from '../assets/documents/JVP60EDICAO.pdf';
@@ -155,6 +154,19 @@ export default function FamiliaNavalScreen() {
   const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null);
   const [currentPdfTitle, setCurrentPdfTitle] = useState<string>('Documento PDF');
 
+  const horizontalScrollRef = useRef<ScrollView>(null);
+  const [scrollPosition, setScrollPosition] = useState(0);
+
+  const scrollServicos = (direction: 'left' | 'right') => {
+    const cardWidth = 138;
+    const newPosition = direction === 'left' 
+      ? Math.max(0, scrollPosition - cardWidth) 
+      : scrollPosition + cardWidth;
+    
+    horizontalScrollRef.current?.scrollTo({ x: newPosition, animated: true });
+    setScrollPosition(newPosition);
+  };
+
   const handleOpenPdf = async (title: string, assetModule: any) => {
     try {
       const asset = Asset.fromModule(assetModule);
@@ -245,24 +257,42 @@ export default function FamiliaNavalScreen() {
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Principais Serviços</Text>
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-                {PRINCIPAIS_SERVICOS_LIST.map((item, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.shortcutCard}
-                    onPress={() => handleAction(item)}
-                  >
-                    <View style={[styles.shortcutIconBg, { backgroundColor: '#f0f4f8' }]}>
-                      {item.iconLib === 'MaterialCommunityIcons' ? (
-                        <MaterialCommunityIcons name={item.icon as any} size={24} color={item.color} />
-                      ) : (
-                        <Ionicons name={item.icon as any} size={24} color={item.color} />
-                      )}
-                    </View>
-                    <Text style={styles.shortcutText} numberOfLines={3}>{item.title}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+
+              <View style={styles.carouselWrapper}>
+                <TouchableOpacity style={styles.cardArrowButton} onPress={() => scrollServicos('left')}>
+                  <Ionicons name="chevron-back" size={20} color="#003366" />
+                </TouchableOpacity>
+
+                <ScrollView 
+                  ref={horizontalScrollRef}
+                  horizontal 
+                  showsHorizontalScrollIndicator={false} 
+                  contentContainerStyle={styles.horizontalScroll}
+                  onScroll={(event) => setScrollPosition(event.nativeEvent.contentOffset.x)}
+                  scrollEventThrottle={16}
+                >
+                  {PRINCIPAIS_SERVICOS_LIST.map((item, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.shortcutCard}
+                      onPress={() => handleAction(item)}
+                    >
+                      <View style={[styles.shortcutIconBg, { backgroundColor: '#f0f4f8' }]}>
+                        {item.iconLib === 'MaterialCommunityIcons' ? (
+                          <MaterialCommunityIcons name={item.icon as any} size={24} color={item.color} />
+                        ) : (
+                          <Ionicons name={item.icon as any} size={24} color={item.color} />
+                        )}
+                      </View>
+                      <Text style={styles.shortcutText} numberOfLines={3}>{item.title}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                <TouchableOpacity style={styles.cardArrowButton} onPress={() => scrollServicos('right')}>
+                  <Ionicons name="chevron-forward" size={20} color="#003366" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.sectionContainer}>
@@ -580,8 +610,10 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#222' },
   sectionSubtitle: { fontSize: 12, color: '#666', marginBottom: 12 },
   seeAllText: { color: '#003366', fontWeight: '600', fontSize: 13 },
-  horizontalScroll: { paddingRight: 16 },
-  shortcutCard: { width: 110, backgroundColor: '#fff', borderRadius: 14, padding: 10, marginRight: 12, alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
+  carouselWrapper: { flexDirection: 'row', alignItems: 'center' },
+  cardArrowButton: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  horizontalScroll: { paddingHorizontal: 8 },
+  shortcutCard: { width: 126, backgroundColor: '#fff', borderRadius: 14, padding: 10, marginHorizontal: 6, alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
   shortcutIconBg: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   shortcutText: { fontSize: 11, fontWeight: '600', color: '#333', textAlign: 'center', lineHeight: 14 },
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
