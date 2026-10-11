@@ -1,7 +1,6 @@
 package com.familianaval.api.module.ttc.model;
 
 import java.time.LocalDate;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -34,18 +33,21 @@ public class Ttc {
     @Column(name = "dataultimaatualizacao", nullable = false)
     private LocalDate dataUltimaAtualizacao;
 
-    @Column(name = "outrasInformacoes")
+    @Column(name = "\"outrasInformacoes\"")
     private String outrasInformacoes;
 
     @Column(name = "ativo")
     private String ativo;
 
-    @Column(name = "ComandosServir")
+    @Column(name = "\"ComandosServir\"")
     private Integer comandosServir;
 
-    @Column(name = "AceitouTermo")
-    private String aceitouTermo;
+    @Column(name = "\"AceitouTermo\"", columnDefinition = "bit")
+    private Boolean aceitouTermo;
 
     @Column(name = "contratado", length = 1)
     private String contratado;
+
+    @Column(name = "om_pretendida_id")
+    private Long omPretendidaId;
 }

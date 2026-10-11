@@ -99,6 +99,7 @@ const SOLICITACOES_LIST = [
     color: '#003366',
     route: 'comunicados',
   },
+  
   {
     title: 'Cadastro TTC',
     icon: 'briefcase-account-outline',

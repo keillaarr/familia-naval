@@ -19,34 +19,57 @@ import com.familianaval.api.module.ttc.repository.TtcRepository;
 public class TtcService {
 
     private final TtcRepository ttcRepository;
-    private final String cryptoKey;
 
-    public TtcService(
-            TtcRepository ttcRepository, 
-            @Value("${app.crypto.key:bf}") String cryptoKey) {
+    @Value("${app.crypto.key}")
+    private String cryptoKey;
+
+    public TtcService(TtcRepository ttcRepository) {
         this.ttcRepository = ttcRepository;
-        this.cryptoKey = cryptoKey;
     }
 
     @Transactional(readOnly = true)
     public Optional<TtcDadosUsuarioDTO> buscarDadosUsuario(String cpf) {
         String cpfLimpo = (cpf != null) ? cpf.replaceAll("\\D", "") : "";
 
-        Optional<Object[]> resultOpt = ttcRepository.buscarDadosTtcPorCpf(cpfLimpo, cryptoKey);
-        if (resultOpt.isEmpty()) {
+        List<Object[]> resultados = ttcRepository.buscarDadosTtcPorCpf(cpfLimpo, cryptoKey);
+        if (resultados == null || resultados.isEmpty()) {
             return Optional.empty();
         }
 
-        Object[] row = resultOpt.get();
+        Object[] row = resultados.get(0);
+
         Long idTtc = ((Number) row[0]).longValue();
         String nip = (String) row[1];
         Character status = row[2] != null ? row[2].toString().charAt(0) : '0';
         Integer comandoBitmask = row[3] != null ? ((Number) row[3]).intValue() : 0;
-        LocalDate dtAtualizacao = row[4] != null ? ((java.sql.Date) row[4]).toLocalDate() : null;
+        
+        LocalDate dtAtualizacao = null;
+        if (row[4] != null) {
+            if (row[4] instanceof LocalDate) {
+                dtAtualizacao = (LocalDate) row[4];
+            } else if (row[4] instanceof java.sql.Date) {
+                dtAtualizacao = ((java.sql.Date) row[4]).toLocalDate();
+            }
+        }
+
         String posto = (String) row[5];
         String nomeCompleto = (String) row[6];
         String vinculo = (String) row[7];
-        Character aceitouTermo = row[8] != null ? row[8].toString().charAt(0) : '0';
+        
+        // Tratamento seguro e flexível para o aceitouTermo
+        Character aceitouTermo = '0';
+        Object aceitouTermoObj = row[8];
+        if (aceitouTermoObj != null) {
+            if (aceitouTermoObj instanceof Boolean) {
+                aceitouTermo = (Boolean) aceitouTermoObj ? '1' : '0';
+            } else if (aceitouTermoObj instanceof Number) {
+                aceitouTermo = ((Number) aceitouTermoObj).intValue() == 1 ? '1' : '0';
+            } else {
+                String val = aceitouTermoObj.toString();
+                aceitouTermo = ("1".equals(val) || "true".equalsIgnoreCase(val) || "S".equalsIgnoreCase(val)) ? '1' : '0';
+            }
+        }
+
         String outrasInfo = (String) row[9];
         Long idArea = row[10] != null ? ((Number) row[10]).longValue() : null;
 
@@ -55,7 +78,7 @@ public class TtcService {
                 : "Usuário";
 
         List<Integer> comandosDecodificados = decodificarComandosBitmask(comandoBitmask);
-        List<Long> assuntos = ttcRepository.buscarIdsAssuntosPorIdTtc(idTtc);
+        List<Long> assuntos = List.of(); 
 
         return Optional.of(new TtcDadosUsuarioDTO(
             idTtc, nip, primeiroNome, posto, vinculo, status, 
@@ -67,11 +90,9 @@ public class TtcService {
     public String cadastrarOuAtualizarTtc(SalvarTtcRequestDTO dto) {
         Long idPessoaLong = dto.idPessoa();
 
-        // Busca pelo campo escalar 'idPessoa' presente no Ttc.java
         Ttc ttc = ttcRepository.findByIdPessoa(idPessoaLong)
                 .orElseGet(() -> {
                     Ttc novoTtc = new Ttc();
-                    novoTtc.setId(ttcRepository.obterProximoIdTtc());
                     novoTtc.setIdPessoa(idPessoaLong);
                     return novoTtc;
                 });
@@ -80,20 +101,11 @@ public class TtcService {
         ttc.setOutrasInformacoes(dto.infoComplementar());
         ttc.setAtivo("1");
         ttc.setComandosServir(dto.comandoServir());
-        ttc.setAceitouTermo("1");
+        ttc.setAceitouTermo(true); // Alterado para Boolean true
         ttc.setContratado(null);
+        ttc.setOmPretendidaId(dto.omPretendidaId());
 
         ttcRepository.save(ttc);
-
-        // Atualização dos Assuntos vinculados ao TTC
-        ttcRepository.deletarAssuntosPorIdTtc(ttc.getId());
-        
-        if (dto.idAssuntos() != null && !dto.idAssuntos().isEmpty()) {
-            Long proximoIdAssunto = ttcRepository.obterProximoIdAssuntoUsuario();
-            for (Long idAssunto : dto.idAssuntos()) {
-                ttcRepository.inserirAssuntoUsuario(proximoIdAssunto++, idAssunto, ttc.getId());
-            }
-        }
 
         return "Cadastro de TTC salvo e publicado com sucesso.";
     }
@@ -103,7 +115,7 @@ public class TtcService {
         return ttcRepository.findByIdPessoa(idPessoa)
                 .map(ttc -> {
                     ttc.setAtivo("0");
-                    ttc.setAceitouTermo("0");
+                    ttc.setAceitouTermo(false); // Alterado para Boolean false
                     ttcRepository.save(ttc);
                     return "Publicação removida com sucesso.";
                 })

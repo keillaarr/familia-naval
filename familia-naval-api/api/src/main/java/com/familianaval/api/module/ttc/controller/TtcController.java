@@ -16,7 +16,7 @@ import com.familianaval.api.module.ttc.dto.TtcDadosUsuarioDTO;
 import com.familianaval.api.module.ttc.service.TtcService;
     
 @RestController
-@RequestMapping("/api/v1/ttc")
+@RequestMapping("/ttc")
 public class TtcController {
 
     private final TtcService ttcService;
@@ -54,10 +54,13 @@ public class TtcController {
         return ResponseEntity.ok(ttcService.listarAreas());
     }
 
-    @GetMapping("/assunto")
+    @GetMapping("/assuntos")
     public ResponseEntity<List<ItemOpcaoDTO>> listarAssuntos() {
         return ResponseEntity.ok(ttcService.listarAssuntos());
     }
 
-
+    @GetMapping("/teste")
+public ResponseEntity<String> teste() {
+    return ResponseEntity.ok("Controller funcionando!");
+}
 }
