@@ -12,6 +12,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useAuth } from '../hooks/useAuth';
+
+const API_BASE_URL = 'http://10.0.2.2:8080/api/v1';
 
 interface ComunicadoAPI {
   id: number;
@@ -33,18 +36,19 @@ interface Comunicado {
 }
 
 export default function ComunicadosScreen() {
+  const { usuario } = useAuth();
   const [comunicados, setComunicados] = useState<Comunicado[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [comunicadoSelecionado, setComunicadoSelecionado] = useState<Comunicado | null>(null);
 
-  // Substitua pelo NIP/CPF do usuário logado conforme sua aplicação
-  const usuarioCpfOrNip = '00000028797'; 
+  const cpfUsuario = usuario?.cpf || usuario?.pessoa?.cpfPessoa || '00000028797';
 
   useEffect(() => {
-    buscarComunicados();
-  }, []);
+    if (cpfUsuario) {
+      buscarComunicados();
+    }
+  }, [cpfUsuario]);
 
-  // Função para corrigir textos corrompidos por problema de encoding
   const corrigirTexto = (texto: string) => {
     if (!texto) return '';
     try {
@@ -67,7 +71,11 @@ export default function ComunicadosScreen() {
   const buscarComunicados = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:8080/api/v1/comunicados/usuario/${usuarioCpfOrNip}`);
+      const res = await fetch(`${API_BASE_URL}/comunicados/usuario/${cpfUsuario}`, {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Falha ao buscar comunicados.');
+
       const data: ComunicadoAPI[] = await res.json();
 
       const dadosFormatados: Comunicado[] = data.map((item) => {
@@ -97,9 +105,7 @@ export default function ComunicadosScreen() {
         };
       });
 
-      // Ordena do mais atual para o mais antigo utilizando o ID decrescente
       dadosFormatados.sort((a, b) => Number(b.id) - Number(a.id));
-
       setComunicados(dadosFormatados);
     } catch (error) {
       console.error('Erro ao buscar comunicados:', error);
@@ -108,20 +114,18 @@ export default function ComunicadosScreen() {
     }
   };
 
-  // Função que dispara o PUT para marcar como lido na API
   const handleVisualizarComunicado = async (item: Comunicado) => {
     setComunicadoSelecionado(item);
 
-    // Se já estiver lido (1), não precisa chamar a API novamente
     if (item.lido === 1) return;
 
     try {
-      const res = await fetch(`http://localhost:8080/api/v1/comunicados/${item.id}/ler`, {
+      const res = await fetch(`${API_BASE_URL}/comunicados/${item.id}/ler`, {
         method: 'PUT',
+        credentials: 'include',
       });
 
       if (res.ok) {
-        // Atualiza o estado local para refletir que o item agora está lido
         setComunicados((prev) =>
           prev.map((c) => (c.id === item.id ? { ...c, lido: 1 } : c))
         );
@@ -146,7 +150,6 @@ export default function ComunicadosScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#003366" />
 
-      {/* Header Fixo Padronizado Família Naval */}
       <View style={styles.headerBar}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -232,7 +235,6 @@ export default function ComunicadosScreen() {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* MODAL DE LEITURA DO COMUNICADO */}
       <Modal
         visible={!!comunicadoSelecionado}
         transparent
@@ -289,224 +291,40 @@ const COLORS = {
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#003366',
-  },
-  headerBar: {
-    backgroundColor: '#003366',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backButton: {
-    marginRight: 12,
-  },
-  headerSubtitle: {
-    color: '#B0C4DE',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 40,
-    backgroundColor: COLORS.bg,
-    flexGrow: 1,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  counterBadge: {
-    backgroundColor: '#E2E8F0',
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: '600',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  cardItem: {
-    backgroundColor: COLORS.white,
-    borderColor: COLORS.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 14,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-  },
-  cardNaoLido: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#D97706',
-  },
-  itemTopo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  linhaInfoSuperior: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-  },
-  iconeBadge: {
-    backgroundColor: COLORS.primaryLight,
-    borderRadius: 10,
-    padding: 10,
-    marginRight: 12,
-    borderWidth: 1,
-    borderColor: '#C5DDF3',
-  },
-  itemInfo: {
-    flex: 1,
-  },
-  itemData: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  badgeNovo: {
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 6,
-  },
-  badgeNovoText: {
-    color: '#B45309',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  badgeLido: {
-    backgroundColor: '#D1FAE5',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  badgeLidoText: {
-    color: '#047857',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  itemTitulo: {
-    color: COLORS.primary,
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
-  btnVisualizar: {
-    backgroundColor: COLORS.primaryLight,
-    borderColor: '#C5DDF3',
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnVisualizarText: {
-    color: COLORS.primary,
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  btnSecondary: {
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 16,
-  },
-  btnSecondaryText: {
-    color: COLORS.textMuted,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
-    padding: 20,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  modalHeaderIconBadge: {
-    backgroundColor: COLORS.primaryLight,
-    padding: 8,
-    borderRadius: 10,
-  },
-  modalData: {
-    color: COLORS.textMuted,
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  modalTitulo: {
-    color: COLORS.primary,
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  modalBody: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 16,
-    borderColor: COLORS.borderLight,
-    borderWidth: 1,
-  },
-  modalTexto: {
-    color: COLORS.text,
-    fontSize: 14,
-    lineHeight: 22,
-  },
-  btnFecharModal: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  btnFecharModalText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
+  safeArea: { flex: 1, backgroundColor: '#003366' },
+  headerBar: { backgroundColor: '#003366', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  backButton: { marginRight: 12 },
+  headerSubtitle: { color: '#B0C4DE', fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },
+  headerTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40, backgroundColor: COLORS.bg, flexGrow: 1 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  sectionTitle: { color: COLORS.primary, fontSize: 16, fontWeight: 'bold' },
+  counterBadge: { backgroundColor: '#E2E8F0', color: COLORS.textMuted, fontSize: 11, fontWeight: '600', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  cardItem: { backgroundColor: COLORS.white, borderColor: COLORS.border, borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
+  cardNaoLido: { borderLeftWidth: 4, borderLeftColor: '#D97706' },
+  itemTopo: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  linhaInfoSuperior: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
+  iconeBadge: { backgroundColor: COLORS.primaryLight, borderRadius: 10, padding: 10, marginRight: 12, borderWidth: 1, borderColor: '#C5DDF3' },
+  itemInfo: { flex: 1 },
+  itemData: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
+  badgeNovo: { backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 },
+  badgeNovoText: { color: '#B45309', fontSize: 9, fontWeight: 'bold' },
+  badgeLido: { backgroundColor: '#D1FAE5', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, flexDirection: 'row', alignItems: 'center' },
+  badgeLidoText: { color: '#047857', fontSize: 9, fontWeight: 'bold' },
+  itemTitulo: { color: COLORS.primary, fontSize: 15, fontWeight: 'bold' },
+  btnVisualizar: { backgroundColor: COLORS.primaryLight, borderColor: '#C5DDF3', borderWidth: 1, borderRadius: 10, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  btnVisualizarText: { color: COLORS.primary, fontSize: 13, fontWeight: 'bold' },
+  btnSecondary: { backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 16 },
+  btnSecondaryText: { color: COLORS.textMuted, fontSize: 14, fontWeight: 'bold' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: COLORS.white, borderRadius: 16, padding: 20, elevation: 5, borderWidth: 1, borderColor: COLORS.border },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  modalHeaderIconBadge: { backgroundColor: COLORS.primaryLight, padding: 8, borderRadius: 10 },
+  modalData: { color: COLORS.textMuted, fontSize: 13, fontWeight: 'bold' },
+  modalTitulo: { color: COLORS.primary, fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
+  modalBody: { backgroundColor: '#F8F9FA', borderRadius: 10, padding: 14, marginBottom: 16, borderColor: COLORS.borderLight, borderWidth: 1 },
+  modalTexto: { color: COLORS.text, fontSize: 14, lineHeight: 22 },
+  btnFecharModal: { backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  btnFecharModalText: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
 });

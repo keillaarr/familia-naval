@@ -12,7 +12,7 @@ public class SecurityUtils {
         boolean modoSimulacao = true; // mude para false quando ativar o OAuth2
         
         if (modoSimulacao) {
-            return "43243479568"; // Seu CPF de teste atual
+            return "00000028797"; // Seu CPF de teste atual
         }
         
         // QUANDO O GOV.BR ESTIVER ATIVO:

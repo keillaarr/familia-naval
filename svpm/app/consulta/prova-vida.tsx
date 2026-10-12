@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useAuth } from '../../hooks/useAuth';
 
 const COLORS = {
   primary: '#003366',
@@ -27,29 +28,33 @@ const COLORS = {
   greenBg: '#E8F5E9',
 };
 
-// Alinhado com as chaves exatas retornadas pelo DTO do back-end (visto no Postman)
 interface ProvaVidaDTO {
   ultRecadastramento: string;
   proxRecadastramento: string;
   situacao: string;
 }
 
+const API_BASE_URL = 'http://10.0.2.2:8080/api/v1';
+
 export default function ProvaVidaScreen() {
+  const { usuario } = useAuth();
   const [dados, setDados] = useState<ProvaVidaDTO | null>(null);
   const [carregando, setCarregando] = useState<boolean>(true);
   
-  const cpfUsuario = '77492846720'; 
-  // Incluído o prefixo /api/v1 conforme testado com sucesso no Postman
-  const API_BASE_URL = 'http://localhost:8080/api/v1';
+  const cpfUsuario = usuario?.cpf || usuario?.pessoa?.cpfPessoa || '77492846720';
 
   useEffect(() => {
-    buscarDadosProvaVida();
-  }, []);
+    if (cpfUsuario) {
+      buscarDadosProvaVida();
+    }
+  }, [cpfUsuario]);
 
   const buscarDadosProvaVida = async () => {
     try {
       setCarregando(true);
-      const response = await fetch(`${API_BASE_URL}/pessoa/prova-vida/${cpfUsuario}`);
+      const response = await fetch(`${API_BASE_URL}/pessoa/prova-vida/${cpfUsuario}`, {
+        credentials: 'include',
+      });
       
       if (!response.ok) {
         throw new Error('Não foi possível buscar os dados de prova de vida.');
@@ -84,7 +89,6 @@ export default function ProvaVidaScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#003366" />
 
-      {/* Header Fixo padronizado */}
       <View style={styles.headerBar}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()} style={styles.drawerButton}>
@@ -112,19 +116,16 @@ export default function ProvaVidaScreen() {
           </View>
         ) : (
           <View style={styles.card}>
-            {/* ÚLTIMO */}
             <View style={styles.infoRow}>
               <Text style={styles.label}>Último Recadastramento</Text>
               <Text style={styles.valor}>{dados?.ultRecadastramento || '-'}</Text>
             </View>
 
-            {/* PRÓXIMO */}
             <View style={styles.infoRow}>
               <Text style={styles.label}>Próximo Recadastramento</Text>
               <Text style={styles.valor}>{dados?.proxRecadastramento || '-'}</Text>
             </View>
 
-            {/* SITUAÇÃO */}
             <View style={styles.statusContainer}>
               <Ionicons
                 name="checkmark-circle-outline"
@@ -139,7 +140,6 @@ export default function ProvaVidaScreen() {
           </View>
         )}
 
-        {/* BOTÃO */}
         <TouchableOpacity
           activeOpacity={0.8}
           style={styles.botaoPrimary}
@@ -153,125 +153,24 @@ export default function ProvaVidaScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#003366',
-  },
-  headerBar: {
-    backgroundColor: '#003366',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  drawerButton: {
-    marginRight: 12,
-  },
-  headerSubtitle: {
-    color: '#b0c4de',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 40,
-    backgroundColor: COLORS.bgScreen,
-    flexGrow: 1,
-  },
-  sectionHeaderBox: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  sectionSubtitle: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  loadingContainer: {
-    padding: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    color: COLORS.textMuted,
-    fontSize: 13,
-  },
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    padding: 18,
-  },
-  infoRow: {
-    borderBottomColor: COLORS.borderLight,
-    borderBottomWidth: 1,
-    marginBottom: 16,
-    paddingBottom: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  label: {
-    color: COLORS.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  valor: {
-    color: COLORS.textDark,
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.greenBg,
-    borderRadius: 10,
-    marginTop: 4,
-    padding: 14,
-  },
-  statusTexto: {
-    color: COLORS.greenSuccess,
-    fontSize: 13,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  botaoPrimary: {
-    alignItems: 'center',
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    marginTop: 24,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-  },
-  botaoPrimaryText: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
+  safeArea: { flex: 1, backgroundColor: '#003366' },
+  headerBar: { backgroundColor: '#003366', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  drawerButton: { marginRight: 12 },
+  headerSubtitle: { color: '#b0c4de', fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },
+  headerTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40, backgroundColor: COLORS.bgScreen, flexGrow: 1 },
+  sectionHeaderBox: { marginBottom: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.primary },
+  sectionSubtitle: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  loadingContainer: { padding: 40, alignItems: 'center', justifyContent: 'center' },
+  loadingText: { marginTop: 10, color: COLORS.textMuted, fontSize: 13 },
+  card: { backgroundColor: COLORS.white, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, padding: 18 },
+  infoRow: { borderBottomColor: COLORS.borderLight, borderBottomWidth: 1, marginBottom: 16, paddingBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  label: { color: COLORS.textMuted, fontSize: 13, fontWeight: '600' },
+  valor: { color: COLORS.textDark, fontSize: 15, fontWeight: 'bold' },
+  statusContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.greenBg, borderRadius: 10, marginTop: 4, padding: 14 },
+  statusTexto: { color: COLORS.greenSuccess, fontSize: 13, fontWeight: 'bold', textAlign: 'center' },
+  botaoPrimary: { alignItems: 'center', backgroundColor: COLORS.primary, borderRadius: 12, marginTop: 24, padding: 16, elevation: 2, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4 },
+  botaoPrimaryText: { color: COLORS.white, fontSize: 14, fontWeight: 'bold' },
 });

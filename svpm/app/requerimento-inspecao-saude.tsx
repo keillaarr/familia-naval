@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,10 +15,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useAuth } from '../hooks/useAuth';
 
 const { width } = Dimensions.get('window');
+const API_BASE_URL = 'http://10.0.2.2:8080/api/v1';
 
-// --- PALETA DE CORES / TEMA PADRONIZADA ---
 const COLORS = {
   primary: '#003366',
   primaryLight: '#EBF3FA',
@@ -37,7 +38,6 @@ const COLORS = {
   grayBtn: '#E0E0E0',
 };
 
-// --- TIPOS ---
 interface Beneficio {
   id: string;
   quemPodePedir: string;
@@ -61,7 +61,6 @@ interface RequerenteState {
   email: string;
 }
 
-// --- DADOS ESTÁTICOS ---
 const BENEFICIOS_LISTA: Beneficio[] = [
   {
     id: 'isencao_ir',
@@ -100,30 +99,72 @@ const BENEFICIOS_LISTA: Beneficio[] = [
   },
 ];
 
-// --- COMPONENTE PRINCIPAL ---
 export default function RequerimentoInspecaoSaudeScreen() {
+  const { usuario } = useAuth();
   const [beneficioSelecionado, setBeneficioSelecionado] = useState<string | null>(null);
   const [declaracaoCiente, setDeclaracaoCiente] = useState<boolean>(false);
   const [receberComunicacao, setReceberComunicacao] = useState<'SIM' | 'NAO'>('SIM');
   const [editandoEndereco, setEditandoEndereco] = useState<boolean>(false);
   const [loadingCep, setLoadingCep] = useState<boolean>(false);
   const [loadingEnvio, setLoadingEnvio] = useState<boolean>(false);
+  const [loadingDados, setLoadingDados] = useState<boolean>(true);
+
+  const nipTitular = usuario?.matricula || usuario?.nip || '85856967';
 
   const [requerente, setRequerente] = useState<RequerenteState>({
-    nome: 'GUILHERME SOUSA DA SILVA',
-    nip: '85856967',
-    postoGraduacao: '3SG',
-    quadroEspecialidade: 'CAP',
-    cep: '20760-245',
-    logradouro: 'Endereço',
-    numero: '1921',
-    bairro: 'Inhaúma',
-    cidade: 'Rio de Janeiro',
-    complemento: 'Casa 3',
-    telefone: '2122697027',
-    celular: '21987853291',
+    nome: '',
+    nip: String(nipTitular),
+    postoGraduacao: '',
+    quadroEspecialidade: '',
+    cep: '',
+    logradouro: '',
+    numero: '',
+    bairro: '',
+    cidade: '',
+    complemento: '',
+    telefone: '',
+    celular: '',
     email: '',
   });
+
+  // Busca as informações reais do backend ao iniciar a tela
+  useEffect(() => {
+    async function fetchDadosBackend() {
+      try {
+        setLoadingDados(true);
+        const response = await fetch(`${API_BASE_URL}/pessoa/usuario/${nipTitular}`, {
+          credentials: 'include',
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setRequerente({
+            nome: data.nomeCPessoa || data.nome || '',
+            nip: String(data.nip || nipTitular),
+            postoGraduacao: data.postoGraduacao || data.posto || '',
+            quadroEspecialidade: data.quadroEspecialidade || data.quadro || '',
+            cep: data.cep || '',
+            logradouro: data.logradouro || '',
+            numero: data.numero || '',
+            bairro: data.bairro || '',
+            cidade: data.cidade || '',
+            complemento: data.complemento || '',
+            telefone: data.telefone || '',
+            celular: data.celular || '',
+            email: data.email || '',
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao buscar dados do requerente:', error);
+      } finally {
+        setLoadingDados(false);
+      }
+    }
+
+    if (nipTitular) {
+      fetchDadosBackend();
+    }
+  }, [nipTitular]);
 
   const handleChange = (field: keyof RequerenteState, value: string) => {
     setRequerente((prev) => ({ ...prev, [field]: value }));
@@ -151,7 +192,7 @@ export default function RequerimentoInspecaoSaudeScreen() {
           }));
         }
       } catch (e) {
-        // Tratar erro silenciosamente
+        // Ignora falhas do ViaCEP
       } finally {
         setLoadingCep(false);
       }
@@ -189,9 +230,9 @@ export default function RequerimentoInspecaoSaudeScreen() {
         receberComunicacao: receberComunicacao,
       };
 
-      // Altere para http://10.0.2.2:8080/pessoa/inspsaude caso esteja testando no emulador Android
-      const response = await fetch('http://localhost:8080/pessoa/inspsaude', {
+      const response = await fetch(`${API_BASE_URL}/inspsaude`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -218,7 +259,6 @@ export default function RequerimentoInspecaoSaudeScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#003366" />
 
-      {/* Header Fixo padronizado */}
       <View style={styles.headerBar}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()} style={styles.drawerButton}>
@@ -232,13 +272,11 @@ export default function RequerimentoInspecaoSaudeScreen() {
       </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* CARD PRINCIPAL */}
         <View style={styles.card}>
           <Text style={styles.docTitle}>
             REQUERIMENTO DE INSPEÇÃO DE SAÚDE PARA CONCESSÃO DE BENEFÍCIO AOS MILITARES VETERANOS
           </Text>
 
-          {/* SEÇÃO 1: DADOS DO REQUERENTE */}
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionHeaderTitle}>1) Dados do Requerente a ser Inspecionado</Text>
             <TouchableOpacity
@@ -251,118 +289,124 @@ export default function RequerimentoInspecaoSaudeScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.dadosBox}>
-            <View style={styles.row}>
+          {loadingDados ? (
+            <View style={{ padding: 20, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={COLORS.primary} />
+              <Text style={{ marginTop: 8, fontSize: 11, color: COLORS.textMuted }}>Carregando dados do servidor...</Text>
+            </View>
+          ) : (
+            <View style={styles.dadosBox}>
+              <View style={styles.row}>
+                <FormInput
+                  label="Nome Completo"
+                  value={requerente.nome}
+                  editable={false}
+                  flex={2}
+                />
+                <FormInput
+                  label="NIP"
+                  value={requerente.nip}
+                  editable={false}
+                  flex={1}
+                />
+              </View>
+
+              <View style={styles.row}>
+                <FormInput
+                  label="Posto/Graduação"
+                  value={requerente.postoGraduacao}
+                  editable={false}
+                  flex={1}
+                />
+                <FormInput
+                  label="Quadro/Especialidade"
+                  value={requerente.quadroEspecialidade}
+                  editable={false}
+                  flex={1}
+                />
+              </View>
+
+              <View style={styles.row}>
+                <FormInput
+                  label="CEP"
+                  value={requerente.cep}
+                  editable={editandoEndereco}
+                  onChangeText={handleCepChange}
+                  keyboardType="numeric"
+                  maxLength={9}
+                  flex={1}
+                  loading={loadingCep}
+                />
+                <FormInput
+                  label="Logradouro"
+                  value={requerente.logradouro}
+                  editable={editandoEndereco}
+                  onChangeText={(t) => handleChange('logradouro', t)}
+                  flex={2}
+                />
+              </View>
+
+              <View style={styles.row}>
+                <FormInput
+                  label="Número"
+                  value={requerente.numero}
+                  editable={editandoEndereco}
+                  onChangeText={(t) => handleChange('numero', t)}
+                  flex={1}
+                />
+                <FormInput
+                  label="Complemento"
+                  value={requerente.complemento}
+                  editable={editandoEndereco}
+                  onChangeText={(t) => handleChange('complemento', t)}
+                  flex={1}
+                />
+                <FormInput
+                  label="Bairro"
+                  value={requerente.bairro}
+                  editable={editandoEndereco}
+                  onChangeText={(t) => handleChange('bairro', t)}
+                  flex={1}
+                />
+              </View>
+
+              <View style={styles.row}>
+                <FormInput
+                  label="Cidade"
+                  value={requerente.cidade}
+                  editable={editandoEndereco}
+                  onChangeText={(t) => handleChange('cidade', t)}
+                  flex={1}
+                />
+                <FormInput
+                  label="Telefone"
+                  value={requerente.telefone}
+                  editable={editandoEndereco}
+                  onChangeText={(t) => handleChange('telefone', t)}
+                  keyboardType="phone-pad"
+                  flex={1}
+                />
+                <FormInput
+                  label="Celular"
+                  value={requerente.celular}
+                  editable={editandoEndereco}
+                  onChangeText={(t) => handleChange('celular', t)}
+                  keyboardType="phone-pad"
+                  flex={1}
+                />
+              </View>
+
               <FormInput
-                label="Nome Completo"
-                value={requerente.nome}
-                editable={false}
-                flex={2}
-              />
-              <FormInput
-                label="NIP"
-                value={requerente.nip}
-                editable={false}
-                flex={1}
+                label="E-mail (Opcional)"
+                value={requerente.email}
+                editable={editandoEndereco}
+                onChangeText={(t) => handleChange('email', t)}
+                keyboardType="email-address"
+                placeholder="Ex: nome@email.com"
               />
             </View>
+          )}
 
-            <View style={styles.row}>
-              <FormInput
-                label="Posto/Graduação"
-                value={requerente.postoGraduacao}
-                editable={false}
-                flex={1}
-              />
-              <FormInput
-                label="Quadro/Especialidade"
-                value={requerente.quadroEspecialidade}
-                editable={false}
-                flex={1}
-              />
-            </View>
-
-            <View style={styles.row}>
-              <FormInput
-                label="CEP"
-                value={requerente.cep}
-                editable={editandoEndereco}
-                onChangeText={handleCepChange}
-                keyboardType="numeric"
-                maxLength={9}
-                flex={1}
-                loading={loadingCep}
-              />
-              <FormInput
-                label="Logradouro"
-                value={requerente.logradouro}
-                editable={editandoEndereco}
-                onChangeText={(t) => handleChange('logradouro', t)}
-                flex={2}
-              />
-            </View>
-
-            <View style={styles.row}>
-              <FormInput
-                label="Número"
-                value={requerente.numero}
-                editable={editandoEndereco}
-                onChangeText={(t) => handleChange('numero', t)}
-                flex={1}
-              />
-              <FormInput
-                label="Complemento"
-                value={requerente.complemento}
-                editable={editandoEndereco}
-                onChangeText={(t) => handleChange('complemento', t)}
-                flex={1}
-              />
-              <FormInput
-                label="Bairro"
-                value={requerente.bairro}
-                editable={editandoEndereco}
-                onChangeText={(t) => handleChange('bairro', t)}
-                flex={1}
-              />
-            </View>
-
-            <View style={styles.row}>
-              <FormInput
-                label="Cidade"
-                value={requerente.cidade}
-                editable={editandoEndereco}
-                onChangeText={(t) => handleChange('cidade', t)}
-                flex={1}
-              />
-              <FormInput
-                label="Telefone"
-                value={requerente.telefone}
-                editable={editandoEndereco}
-                onChangeText={(t) => handleChange('telefone', t)}
-                keyboardType="phone-pad"
-                flex={1}
-              />
-              <FormInput
-                label="Celular"
-                value={requerente.celular}
-                editable={editandoEndereco}
-                onChangeText={(t) => handleChange('celular', t)}
-                keyboardType="phone-pad"
-                flex={1}
-              />
-            </View>
-
-            <FormInput
-              label="E-mail (Opcional)"
-              value={requerente.email}
-              editable={editandoEndereco}
-              onChangeText={(t) => handleChange('email', t)}
-              keyboardType="email-address"
-              placeholder="Ex: nome@email.com"
-            />
-          </View>
-
-          {/* SEÇÃO 2: BENEFÍCIOS PRETENDIDOS */}
           <Text style={styles.sectionHeaderTitle}>2) Benefícios Pretendidos (Selecione 1)</Text>
           <View style={styles.beneficiosContainer}>
             {BENEFICIOS_LISTA.map((beneficio) => (
@@ -375,9 +419,8 @@ export default function RequerimentoInspecaoSaudeScreen() {
             ))}
           </View>
           
-            <Text style={styles.sectionHeaderTitle}>3) OBSERVAÇÕES IMPORTANTES:</Text>
+          <Text style={styles.sectionHeaderTitle}>3) OBSERVAÇÕES IMPORTANTES:</Text>
 
-          {/* SEÇÃO 3: OBSERVAÇÕES IMPORTANTES */}
           <View style={styles.warningBox}>
             <Text style={styles.warningItem}>
               a) Os documentos médicos e/ou hospitalares deverão ser apresentados à instrução da perícia médica no primeiro comparecimento à junta de saúde, não havendo necessidade de serem anexados a este requerimento.
@@ -395,10 +438,8 @@ export default function RequerimentoInspecaoSaudeScreen() {
             </Text>
           </View>
 
-          {/* SEÇÃO 4: DECLARAÇÕES */}
           <Text style={styles.sectionHeaderTitle}>4) Declaro o seguinte:</Text>
 
-          {/* CHECKBOX */}
           <TouchableOpacity
             activeOpacity={0.8}
             style={styles.checkboxRow}
@@ -411,7 +452,6 @@ export default function RequerimentoInspecaoSaudeScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* PERGUNTA CANAL DE COMUNICAÇÃO */}
           <View style={styles.comunicacaoBox}>
             <Text style={styles.comunicacaoLabel}>
               Desejo receber a comunicação dos atos referentes a este requerimento por e-mail/aplicativo SVPM?
@@ -437,7 +477,6 @@ export default function RequerimentoInspecaoSaudeScreen() {
             </View>
           </View>
 
-          {/* BOTÕES DE AÇÃO */}
           <TouchableOpacity 
             activeOpacity={0.8} 
             style={[styles.btnPrimary, loadingEnvio && { opacity: 0.7 }]} 
@@ -459,8 +498,6 @@ export default function RequerimentoInspecaoSaudeScreen() {
   );
 }
 
-// --- SUBCOMPONENTES REUTILIZÁVEIS ---
-
 type FormInputProps = TextInputProps & {
   label: string;
   flex?: number;
@@ -477,6 +514,7 @@ function FormInput({ label, flex, editable = true, loading, ...rest }: FormInput
       <TextInput
         style={[styles.input, !editable && styles.inputDisabled]}
         editable={editable}
+        placeholderTextColor="#999"
         {...rest}
       />
     </View>
@@ -509,307 +547,55 @@ function BeneficioCard({ beneficio, selecionado, onSelect }: BeneficioCardProps)
   );
 }
 
-// --- ESTILOS ---
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#003366',
-  },
-  headerBar: {
-    backgroundColor: '#003366',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  drawerButton: {
-    marginRight: 12,
-  },
-  headerSubtitle: {
-    color: '#b0c4de',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bgScreen,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 40,
-  },
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-  },
-  docTitle: {
-    color: COLORS.primary,
-    fontSize: 13,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 16,
-    lineHeight: 18,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  sectionHeaderTitle: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    marginTop: 6,
-    flex: 1,
-  },
-  btnEditar: {
-    backgroundColor: COLORS.primaryLight,
-    borderColor: COLORS.primary,
-    borderWidth: 1,
-    borderRadius: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-  },
-  btnEditarTexto: {
-    color: COLORS.primary,
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  dadosBox: {
-    backgroundColor: '#F8F9FA',
-    borderColor: COLORS.border,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 14,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  inputGroup: {
-    marginBottom: 8,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  label: {
-    color: COLORS.textDark,
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 3,
-  },
-  input: {
-    backgroundColor: COLORS.white,
-    borderColor: COLORS.borderLight,
-    borderRadius: 8,
-    borderWidth: 1,
-    fontSize: 12,
-    height: 38,
-    paddingHorizontal: 10,
-    color: COLORS.textDark,
-  },
-  inputDisabled: {
-    backgroundColor: COLORS.primaryLight,
-    color: COLORS.textMuted,
-    borderColor: COLORS.border,
-  },
-  beneficiosContainer: {
-    gap: 10,
-    marginBottom: 16,
-  },
-  beneficioCard: {
-    backgroundColor: '#F8F9FA',
-    borderColor: COLORS.borderLight,
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
-  },
-  beneficioCardSelecionado: {
-    backgroundColor: COLORS.primaryLight,
-    borderColor: COLORS.primary,
-    borderWidth: 1.5,
-  },
-  beneficioTopo: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 6,
-  },
-  radioOuter: {
-    height: 18,
-    width: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-    marginTop: 2,
-  },
-  radioInner: {
-    height: 9,
-    width: 9,
-    borderRadius: 4.5,
-    backgroundColor: COLORS.primary,
-  },
-  beneficioHeaderInfo: {
-    flex: 1,
-  },
-  quemPodePedirTag: {
-    color: COLORS.primary,
-    fontSize: 10,
-    fontWeight: 'bold',
-    backgroundColor: COLORS.primaryBadge,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginBottom: 4,
-  },
-  beneficioTitulo: {
-    color: COLORS.primary,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  beneficioDescricao: {
-    color: '#444444',
-    fontSize: 11,
-    lineHeight: 16,
-    marginTop: 4,
-  },
-  warningBox: {
-    backgroundColor: COLORS.warningBg,
-    borderColor: COLORS.warningBorder,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 14,
-  },
-  warningTitle: {
-    color: '#795548',
-    fontSize: 11,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  warningItem: {
-    color: COLORS.warningText,
-    fontSize: 11,
-    lineHeight: 15,
-    marginBottom: 4,
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    marginTop: 4,
-  },
-  checkboxBox: {
-    height: 20,
-    width: 20,
-    borderRadius: 5,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  checkboxAtivo: {
-    backgroundColor: COLORS.primary,
-  },
-  checkboxCheck: {
-    color: COLORS.white,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  checkboxLabel: {
-    color: COLORS.textDark,
-    fontSize: 12,
-    flex: 1,
-    lineHeight: 16,
-  },
-  comunicacaoBox: {
-    backgroundColor: COLORS.primaryLight,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-    borderColor: COLORS.border,
-    borderWidth: 1,
-  },
-  comunicacaoLabel: {
-    color: COLORS.primary,
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  segmentedContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#DDE5ED',
-    borderRadius: 8,
-    padding: 3,
-  },
-  segmentBtn: {
-    flex: 1,
-    paddingVertical: 6,
-    alignItems: 'center',
-    borderRadius: 6,
-  },
-  segmentActiveYes: {
-    backgroundColor: COLORS.primary,
-  },
-  segmentActiveNo: {
-    backgroundColor: COLORS.danger,
-  },
-  segmentText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#4A5568',
-  },
-  segmentTextActive: {
-    color: COLORS.white,
-  },
-  btnPrimary: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  btnPrimaryText: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  btnSecondary: {
-    backgroundColor: COLORS.grayBtn,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  btnSecondaryText: {
-    color: COLORS.textDark,
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
+  safeArea: { flex: 1, backgroundColor: '#003366' },
+  headerBar: { backgroundColor: '#003366', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  drawerButton: { marginRight: 12 },
+  headerSubtitle: { color: '#b0c4de', fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },
+  headerTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  container: { flex: 1, backgroundColor: COLORS.bgScreen },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40 },
+  card: { backgroundColor: COLORS.white, borderRadius: 16, padding: 16, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
+  docTitle: { color: COLORS.primary, fontSize: 13, fontWeight: 'bold', textAlign: 'center', marginBottom: 16, lineHeight: 18 },
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  sectionHeaderTitle: { color: COLORS.primary, fontSize: 14, fontWeight: 'bold', marginBottom: 8, marginTop: 6, flex: 1 },
+  btnEditar: { backgroundColor: COLORS.primaryLight, borderColor: COLORS.primary, borderWidth: 1, borderRadius: 6, paddingVertical: 4, paddingHorizontal: 10 },
+  btnEditarTexto: { color: COLORS.primary, fontSize: 11, fontWeight: 'bold' },
+  dadosBox: { backgroundColor: '#F8F9FA', borderColor: COLORS.border, borderWidth: 1, borderRadius: 12, padding: 10, marginBottom: 14 },
+  row: { flexDirection: 'row', gap: 8 },
+  inputGroup: { marginBottom: 8 },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  label: { color: COLORS.textDark, fontSize: 11, fontWeight: '600', marginBottom: 3 },
+  input: { backgroundColor: COLORS.white, borderColor: COLORS.borderLight, borderRadius: 8, borderWidth: 1, fontSize: 12, height: 38, paddingHorizontal: 10, color: COLORS.textDark },
+  inputDisabled: { backgroundColor: COLORS.primaryLight, color: COLORS.textMuted, borderColor: COLORS.border },
+  beneficiosContainer: { gap: 10, marginBottom: 16 },
+  beneficioCard: { backgroundColor: '#F8F9FA', borderColor: COLORS.borderLight, borderWidth: 1, borderRadius: 10, padding: 12 },
+  beneficioCardSelecionado: { backgroundColor: COLORS.primaryLight, borderColor: COLORS.primary, borderWidth: 1.5 },
+  beneficioTopo: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 6 },
+  radioOuter: { height: 18, width: 18, borderRadius: 9, borderWidth: 2, borderColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', marginRight: 8, marginTop: 2 },
+  radioInner: { height: 9, width: 9, borderRadius: 4.5, backgroundColor: COLORS.primary },
+  beneficioHeaderInfo: { flex: 1 },
+  quemPodePedirTag: { color: COLORS.primary, fontSize: 10, fontWeight: 'bold', backgroundColor: COLORS.primaryBadge, alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginBottom: 4 },
+  beneficioTitulo: { color: COLORS.primary, fontSize: 12, fontWeight: 'bold' },
+  beneficioDescricao: { color: '#444444', fontSize: 11, lineHeight: 16, marginTop: 4 },
+  warningBox: { backgroundColor: COLORS.warningBg, borderColor: COLORS.warningBorder, borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 14 },
+  warningItem: { color: COLORS.warningText, fontSize: 11, lineHeight: 15, marginBottom: 6 },
+  checkboxRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, marginTop: 4 },
+  checkboxBox: { height: 20, width: 20, borderRadius: 5, borderWidth: 2, borderColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  checkboxAtivo: { backgroundColor: COLORS.primary },
+  checkboxCheck: { color: COLORS.white, fontSize: 12, fontWeight: 'bold' },
+  checkboxLabel: { color: COLORS.textDark, fontSize: 12, flex: 1, lineHeight: 16 },
+  comunicacaoBox: { backgroundColor: COLORS.primaryLight, borderRadius: 12, padding: 12, marginBottom: 16, borderColor: COLORS.border, borderWidth: 1 },
+  comunicacaoLabel: { color: COLORS.primary, fontSize: 11, fontWeight: '600', marginBottom: 8 },
+  segmentedContainer: { flexDirection: 'row', backgroundColor: '#DDE5ED', borderRadius: 8, padding: 3 },
+  segmentBtn: { flex: 1, paddingVertical: 6, alignItems: 'center', borderRadius: 6 },
+  segmentActiveYes: { backgroundColor: COLORS.primary },
+  segmentActiveNo: { backgroundColor: COLORS.danger },
+  segmentText: { fontSize: 11, fontWeight: 'bold', color: '#4A5568' },
+  segmentTextActive: { color: COLORS.white },
+  btnPrimary: { backgroundColor: COLORS.primary, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
+  btnPrimaryText: { color: COLORS.white, fontSize: 14, fontWeight: 'bold' },
+  btnSecondary: { backgroundColor: COLORS.grayBtn, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
+  btnSecondaryText: { color: COLORS.textDark, fontSize: 13, fontWeight: 'bold' },
 });

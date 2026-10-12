@@ -12,6 +12,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useAuth } from '../hooks/useAuth';
+
+const API_BASE_URL = 'http://10.0.2.2:8080/api/v1';
 
 const COLORS = {
   primary: '#003366',
@@ -28,7 +31,6 @@ const COLORS = {
   accentBlue: '#00509E',
 };
 
-// Interface atualizada para incluir os campos reais vindos da API
 interface Dependente {
   nipDep?: string | number;
   dependencia?: string | null;
@@ -40,22 +42,27 @@ interface Dependente {
 }
 
 export default function DependentesScreen() {
+  const { usuario } = useAuth();
   const [dependentesList, setDependentesList] = useState<Dependente[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // NIP atualizado conforme o seu teste no backend
-  const nipTitular = '76317978'; 
+  // Obtém o NIP real da sessão do usuário autenticado (ou fallback para string vazia)
+  const nipTitular = usuario?.matricula || usuario?.nip || '';
 
   useEffect(() => {
-    fetchDependentes();
-  }, []);
+    if (nipTitular) {
+      fetchDependentes();
+    } else {
+      setLoading(false);
+    }
+  }, [nipTitular]);
 
   const fetchDependentes = async () => {
     try {
-      const response = await fetch(`http://localhost:8080/api/v1/pessoa/dependentes/usuario/${nipTitular}`);
+      const response = await fetch(`${API_BASE_URL}/pessoa/dependentes/usuario/${nipTitular}`, {
+        credentials: 'include',
+      });
       const data = await response.json();
-      
-      console.log("Dados recebidos da API:", data);
       
       if (response.ok) {
         if (Array.isArray(data)) {
@@ -76,7 +83,6 @@ export default function DependentesScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#003366" />
 
-      {/* Header Fixo padronizado */}
       <View style={styles.headerBar}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()} style={styles.drawerButton}>
@@ -90,7 +96,6 @@ export default function DependentesScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Banner / Resumo em Destaque */}
         <View style={styles.heroBanner}>
           <View style={styles.heroTextContainer}>
             <Text style={styles.heroTag}>GESTÃO CADASTRAL</Text>
@@ -162,169 +167,31 @@ export default function DependentesScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#003366',
-  },
-  headerBar: {
-    backgroundColor: '#003366',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  drawerButton: {
-    marginRight: 12,
-  },
-  headerSubtitle: {
-    color: '#b0c4de',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 40,
-    backgroundColor: COLORS.bgScreen,
-    flexGrow: 1,
-  },
-  heroBanner: {
-    backgroundColor: COLORS.primaryLight,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#C5DDF3',
-    padding: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  heroTextContainer: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  heroTag: {
-    color: COLORS.primary,
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-    marginBottom: 4,
-  },
-  heroTitle: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  heroDesc: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  heroIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-  },
-  sectionHeaderBox: {
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  sectionSubtitle: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    padding: 18,
-    marginBottom: 14,
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  badgeIconSmall: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#EBF3FA',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeSuccessInline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.greenBg,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    gap: 4,
-  },
-  badgeSuccessText: {
-    color: COLORS.greenSuccess,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  infoBlock: {
-    marginBottom: 12,
-  },
-  fieldLabel: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  fieldValueBold: {
-    color: COLORS.textDark,
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
-  rowGridFields: {
-    flexDirection: 'row',
-    gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-    paddingTop: 10,
-    marginTop: 4,
-  },
-  halfField: {
-    flex: 1,
-  },
-  fieldValue: {
-    color: COLORS.textDark,
-    fontSize: 13,
-    fontWeight: '500',
-  },
+  safeArea: { flex: 1, backgroundColor: '#003366' },
+  headerBar: { backgroundColor: '#003366', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  drawerButton: { marginRight: 12 },
+  headerSubtitle: { color: '#b0c4de', fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },
+  headerTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40, backgroundColor: COLORS.bgScreen, flexGrow: 1 },
+  heroBanner: { backgroundColor: COLORS.primaryLight, borderRadius: 16, borderWidth: 1, borderColor: '#C5DDF3', padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  heroTextContainer: { flex: 1, paddingRight: 12 },
+  heroTag: { color: COLORS.primary, fontSize: 10, fontWeight: '800', letterSpacing: 0.6, marginBottom: 4 },
+  heroTitle: { color: COLORS.primary, fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
+  heroDesc: { color: COLORS.textMuted, fontSize: 12, lineHeight: 16 },
+  heroIconBox: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 3 },
+  sectionHeaderBox: { marginBottom: 12 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.primary },
+  sectionSubtitle: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  card: { backgroundColor: COLORS.white, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, padding: 18, marginBottom: 14 },
+  cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  badgeIconSmall: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#EBF3FA', alignItems: 'center', justifyContent: 'center' },
+  badgeSuccessInline: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.greenBg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, gap: 4 },
+  badgeSuccessText: { color: COLORS.greenSuccess, fontSize: 12, fontWeight: 'bold' },
+  infoBlock: { marginBottom: 12 },
+  fieldLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '600', marginBottom: 2 },
+  fieldValueBold: { color: COLORS.textDark, fontSize: 15, fontWeight: 'bold' },
+  rowGridFields: { flexDirection: 'row', gap: 12, borderTopWidth: 1, borderTopColor: COLORS.borderLight, paddingTop: 10, marginTop: 4 },
+  halfField: { flex: 1 },
+  fieldValue: { color: COLORS.textDark, fontSize: 13, fontWeight: '500' },
 });

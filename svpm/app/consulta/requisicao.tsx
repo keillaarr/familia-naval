@@ -38,14 +38,14 @@ interface RequisicaoDTO {
   status: string;
 }
 
+const API_BASE_URL = 'http://10.0.2.2:8080/api/v1';
+
 export default function RequisicaoScreen() {
   const [numeroRequisicao, setNumeroRequisicao] = useState('');
   const [consultaRealizada, setConsultaRealizada] = useState(false);
   const [carregando, setCarregando] = useState(false);
 
   const [requisicao, setRequisicao] = useState<RequisicaoDTO | null>(null);
-
-  const API_BASE_URL = 'http://localhost:8080/api/v1';
 
   const handleConsultar = async () => {
     const numLimpo = numeroRequisicao.trim();
@@ -58,7 +58,9 @@ export default function RequisicaoScreen() {
       setCarregando(true);
       setConsultaRealizada(false);
 
-      const response = await fetch(`${API_BASE_URL}/pessoa/requisicao/${numLimpo}`);
+      const response = await fetch(`${API_BASE_URL}/pessoa/requisicao/${numLimpo}`, {
+        credentials: 'include',
+      });
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -82,7 +84,6 @@ export default function RequisicaoScreen() {
     }
   };
 
-  // Identifica a cor do status dinamicamente (se concluída, usa verde, senão amarelo/aviso)
   const isConcluida = requisicao?.status?.toLowerCase().includes('concluída');
   const statusBgColor = isConcluida ? COLORS.greenBg : COLORS.warningBg;
   const statusTextColor = isConcluida ? COLORS.greenSuccess : COLORS.warningYellow;
@@ -92,7 +93,6 @@ export default function RequisicaoScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#003366" />
 
-      {/* Header Fixo padronizado */}
       <View style={styles.headerBar}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()} style={styles.drawerButton}>
@@ -113,7 +113,6 @@ export default function RequisicaoScreen() {
           </Text>
         </View>
 
-        {/* FORMULÁRIO */}
         <View style={styles.card}>
           <Text style={styles.label}>Nº da Requisição</Text>
 
@@ -142,7 +141,6 @@ export default function RequisicaoScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* RESULTADO */}
         {consultaRealizada && requisicao && (
           <>
             <View style={[styles.sectionHeaderBox, { marginTop: 10 }]}>
@@ -186,137 +184,25 @@ export default function RequisicaoScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#003366',
-  },
-  headerBar: {
-    backgroundColor: '#003366',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  drawerButton: {
-    marginRight: 12,
-  },
-  headerSubtitle: {
-    color: '#b0c4de',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 40,
-    backgroundColor: COLORS.bgScreen,
-    flexGrow: 1,
-  },
-  sectionHeaderBox: {
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  sectionSubtitle: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  card: {
-    backgroundColor: COLORS.white,
-    borderColor: COLORS.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    marginBottom: 16,
-    padding: 18,
-  },
-  label: {
-    color: COLORS.textDark,
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: COLORS.inputBg,
-    borderColor: COLORS.borderLight,
-    borderRadius: 10,
-    borderWidth: 1,
-    color: COLORS.textDark,
-    fontSize: 14,
-    height: 48,
-    paddingHorizontal: 14,
-  },
-  helperText: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    marginTop: 6,
-  },
-  botaoPrimary: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    marginTop: 18,
-    padding: 14,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    minHeight: 48,
-  },
-  botaoPrimaryText: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  infoRow: {
-    borderBottomColor: COLORS.borderLight,
-    borderBottomWidth: 1,
-    marginBottom: 14,
-    paddingBottom: 14,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  infoLabel: {
-    color: COLORS.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  infoValor: {
-    color: COLORS.textDark,
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 10,
-    marginTop: 16,
-    padding: 14,
-  },
-  statusTexto: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
+  safeArea: { flex: 1, backgroundColor: '#003366' },
+  headerBar: { backgroundColor: '#003366', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  drawerButton: { marginRight: 12 },
+  headerSubtitle: { color: '#b0c4de', fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },
+  headerTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40, backgroundColor: COLORS.bgScreen, flexGrow: 1 },
+  sectionHeaderBox: { marginBottom: 12 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.primary },
+  sectionSubtitle: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  card: { backgroundColor: COLORS.white, borderColor: COLORS.border, borderRadius: 16, borderWidth: 1, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, marginBottom: 16, padding: 18 },
+  label: { color: COLORS.textDark, fontSize: 13, fontWeight: '600', marginBottom: 8 },
+  input: { backgroundColor: COLORS.inputBg, borderColor: COLORS.borderLight, borderRadius: 10, borderWidth: 1, color: COLORS.textDark, fontSize: 14, height: 48, paddingHorizontal: 14 },
+  helperText: { color: COLORS.textMuted, fontSize: 11, marginTop: 6 },
+  botaoPrimary: { alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, borderRadius: 12, marginTop: 18, padding: 14, elevation: 2, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, minHeight: 48 },
+  botaoPrimaryText: { color: COLORS.white, fontSize: 14, fontWeight: 'bold' },
+  infoRow: { borderBottomColor: COLORS.borderLight, borderBottomWidth: 1, marginBottom: 14, paddingBottom: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  infoLabel: { color: COLORS.textMuted, fontSize: 13, fontWeight: '600' },
+  infoValor: { color: COLORS.textDark, fontSize: 15, fontWeight: 'bold' },
+  statusContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 10, marginTop: 16, padding: 14 },
+  statusTexto: { fontSize: 13, fontWeight: 'bold', textAlign: 'center' },
 });

@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useAuth } from '../../hooks/useAuth';
 
 const COLORS = {
   primary: '#003366',
@@ -28,7 +29,6 @@ const COLORS = {
   accentBlue: '#00509E',
 };
 
-// Alinhado com as propriedades retornadas pelo DTO do back-end
 interface AuxilioInvalidezDTO {
   ultimaDeclaracao: string;
   proximaDeclaracao: string;
@@ -37,22 +37,27 @@ interface AuxilioInvalidezDTO {
   podeEnviarNovaDeclaracao: boolean;
 }
 
+const API_BASE_URL = 'http://10.0.2.2:8080/api/v1';
+
 export default function AuxilioInvalidezScreen() {
+  const { usuario } = useAuth();
   const [dados, setDados] = useState<AuxilioInvalidezDTO | null>(null);
   const [carregando, setCarregando] = useState<boolean>(true);
 
-  // Substitua pelo identificador/CPF correto ou parâmetro dinâmico da sua sessão
-  const identificadorUsuario = '78442621415'; 
-  const API_BASE_URL = 'http://localhost:8080/api/v1';
+  const cpfUsuario = usuario?.cpf || usuario?.pessoa?.cpfPessoa || '43243479568';
 
   useEffect(() => {
-    buscarDadosAuxilioInvalidez();
-  }, []);
+    if (cpfUsuario) {
+      buscarDadosAuxilioInvalidez();
+    }
+  }, [cpfUsuario]);
 
   const buscarDadosAuxilioInvalidez = async () => {
     try {
       setCarregando(true);
-      const response = await fetch(`${API_BASE_URL}/pessoa/auxilio-invalidez/${identificadorUsuario}`);
+      const response = await fetch(`${API_BASE_URL}/pessoa/auxilio-invalidez/${cpfUsuario}`, {
+        credentials: 'include',
+      });
       
       if (!response.ok) {
         throw new Error('Não foi possível buscar os dados de auxílio invalidez.');
@@ -68,7 +73,7 @@ export default function AuxilioInvalidezScreen() {
     }
   };
 
-  const handleEnviarDeclaracao = () => {
+  const handleEnviarDeclaracao = async () => {
     Alert.alert(
       'Enviar Declaração',
       'Deseja prosseguir com o envio da nova declaração de Auxílio Invalidez?',
@@ -76,8 +81,27 @@ export default function AuxilioInvalidezScreen() {
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Confirmar',
-          onPress: () =>
-            Alert.alert('Sucesso', 'Nova declaração enviada com sucesso!'),
+          onPress: async () => {
+            try {
+              const response = await fetch(`${API_BASE_URL}/pessoa/auxilio-invalidez/${cpfUsuario}`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+              });
+
+              if (response.ok) {
+                Alert.alert('Sucesso', 'Nova declaração enviada com sucesso!');
+                buscarDadosAuxilioInvalidez();
+              } else {
+                Alert.alert('Erro', 'Não foi possível enviar a declaração.');
+              }
+            } catch (err) {
+              console.error(err);
+              Alert.alert('Erro', 'Falha de comunicação ao enviar a declaração.');
+            }
+          },
         },
       ]
     );
@@ -87,7 +111,6 @@ export default function AuxilioInvalidezScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#003366" />
 
-      {/* Header Fixo padronizado */}
       <View style={styles.headerBar}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()} style={styles.drawerButton}>
@@ -101,7 +124,6 @@ export default function AuxilioInvalidezScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Banner / Resumo em Destaque */}
         <View style={styles.heroBanner}>
           <View style={styles.heroTextContainer}>
             <Text style={styles.heroTag}>CONTROLE ANUAL / SEMESTRAL</Text>
@@ -129,7 +151,6 @@ export default function AuxilioInvalidezScreen() {
           </View>
         ) : (
           <>
-            {/* Layout em Grid / Cards Compactos Lado a Lado para Datas */}
             <View style={styles.rowGrid}>
               <View style={[styles.card, styles.gridCard]}>
                 <View style={styles.badgeIconSmall}>
@@ -148,7 +169,6 @@ export default function AuxilioInvalidezScreen() {
               </View>
             </View>
 
-            {/* Card de Status Destacado */}
             <View style={styles.card}>
               <View style={styles.statusHeaderRow}>
                 <Text style={styles.label}>Situação Atual</Text>
@@ -162,7 +182,6 @@ export default function AuxilioInvalidezScreen() {
           </>
         )}
 
-        {/* Card Informativo Rápido */}
         <View style={styles.infoCardNote}>
           <Ionicons name="information-circle-outline" size={20} color={COLORS.primary} style={{ marginRight: 10, marginTop: 2 }} />
           <Text style={styles.infoNoteText}>
@@ -170,7 +189,6 @@ export default function AuxilioInvalidezScreen() {
           </Text>
         </View>
 
-        {/* BOTÃO */}
         <TouchableOpacity
           activeOpacity={0.8}
           style={styles.botaoPrimary}
@@ -185,215 +203,37 @@ export default function AuxilioInvalidezScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#003366',
-  },
-  headerBar: {
-    backgroundColor: '#003366',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  drawerButton: {
-    marginRight: 12,
-  },
-  headerSubtitle: {
-    color: '#b0c4de',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 40,
-    backgroundColor: COLORS.bgScreen,
-    flexGrow: 1,
-  },
-  heroBanner: {
-    backgroundColor: COLORS.primaryLight,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#C5DDF3',
-    padding: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  heroTextContainer: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  heroTag: {
-    color: COLORS.primary,
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-    marginBottom: 4,
-  },
-  heroTitle: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  heroDesc: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  heroIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-  },
-  sectionHeaderBox: {
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  sectionSubtitle: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  loadingContainer: {
-    padding: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    color: COLORS.textMuted,
-    fontSize: 13,
-  },
-  rowGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 14,
-  },
-  gridCard: {
-    flex: 1,
-    marginBottom: 0,
-    padding: 14,
-  },
-  badgeIconSmall: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#EBF3FA',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  gridLabel: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  gridValor: {
-    color: COLORS.textDark,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    padding: 18,
-    marginBottom: 14,
-  },
-  statusHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  label: {
-    color: COLORS.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  badgeSuccessInline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.greenBg,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    gap: 4,
-  },
-  badgeSuccessText: {
-    color: COLORS.greenSuccess,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  subtextDetalhe: {
-    color: COLORS.textDark,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  infoCardNote: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFDE7',
-    borderColor: '#FFF59D',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 4,
-    marginBottom: 8,
-  },
-  infoNoteText: {
-    color: '#827717',
-    fontSize: 12,
-    lineHeight: 18,
-    flex: 1,
-  },
-  botaoPrimary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    marginTop: 16,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-  },
-  botaoPrimaryText: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
+  safeArea: { flex: 1, backgroundColor: '#003366' },
+  headerBar: { backgroundColor: '#003366', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  drawerButton: { marginRight: 12 },
+  headerSubtitle: { color: '#b0c4de', fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },
+  headerTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40, backgroundColor: COLORS.bgScreen, flexGrow: 1 },
+  heroBanner: { backgroundColor: COLORS.primaryLight, borderRadius: 16, borderWidth: 1, borderColor: '#C5DDF3', padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  heroTextContainer: { flex: 1, paddingRight: 12 },
+  heroTag: { color: COLORS.primary, fontSize: 10, fontWeight: '800', letterSpacing: 0.6, marginBottom: 4 },
+  heroTitle: { color: COLORS.primary, fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
+  heroDesc: { color: COLORS.textMuted, fontSize: 12, lineHeight: 16 },
+  heroIconBox: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 3 },
+  sectionHeaderBox: { marginBottom: 12 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.primary },
+  sectionSubtitle: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  loadingContainer: { padding: 30, alignItems: 'center', justifyContent: 'center' },
+  loadingText: { marginTop: 10, color: COLORS.textMuted, fontSize: 13 },
+  rowGrid: { flexDirection: 'row', gap: 12, marginBottom: 14 },
+  gridCard: { flex: 1, marginBottom: 0, padding: 14 },
+  badgeIconSmall: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#EBF3FA', alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  gridLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '600', marginBottom: 4 },
+  gridValor: { color: COLORS.textDark, fontSize: 16, fontWeight: 'bold' },
+  card: { backgroundColor: COLORS.white, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, padding: 18, marginBottom: 14 },
+  statusHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  label: { color: COLORS.textMuted, fontSize: 13, fontWeight: '600' },
+  badgeSuccessInline: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.greenBg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, gap: 4 },
+  badgeSuccessText: { color: COLORS.greenSuccess, fontSize: 12, fontWeight: 'bold' },
+  subtextDetalhe: { color: COLORS.textDark, fontSize: 14, fontWeight: '500' },
+  infoCardNote: { flexDirection: 'row', backgroundColor: '#FFFDE7', borderColor: '#FFF59D', borderWidth: 1, borderRadius: 12, padding: 14, marginTop: 4, marginBottom: 8 },
+  infoNoteText: { color: '#827717', fontSize: 12, lineHeight: 18, flex: 1 },
+  botaoPrimary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, borderRadius: 12, marginTop: 16, padding: 16, elevation: 2, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4 },
+  botaoPrimaryText: { color: COLORS.white, fontSize: 14, fontWeight: 'bold' },
 });

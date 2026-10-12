@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,6 +13,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useAuth } from '../hooks/useAuth';
+
+const API_BASE_URL = 'http://10.0.2.2:8080/api/v1';
 
 const todosDistritos = [
   'COM1DN',
@@ -306,12 +309,38 @@ const categorias = [
 ];
 
 export default function CadastroTTCScreen() {
+  const { usuario } = useAuth();
   const [enviando, setEnviando] = useState(false);
   const [textoLivre, setTextoLivre] = useState('');
-  const [omDesejada, setOmDesejada] = useState(''); // <-- Novo estado para a OM
+  const [omDesejada, setOmDesejada] = useState('');
   const [distritosSelecionados, setDistritosSelecionados] = useState<string[]>([]);
   const [assuntosSelecionados, setAssuntosSelecionados] = useState<string[]>([]);
   const [categoriasAbertas, setCategoriasAbertas] = useState<Record<string, boolean>>({});
+
+  const cpfReal = usuario?.cpf || usuario?.pessoa?.cpfPessoa || '';
+
+  useEffect(() => {
+    async function buscarCadastroExistente() {
+      if (!cpfReal) return;
+      try {
+        const response = await fetch(`${API_BASE_URL}/cadastro-ttc/${cpfReal}`, {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data) {
+            setDistritosSelecionados(data.distritos || []);
+            setOmDesejada(data.omDesejada || '');
+            setAssuntosSelecionados(data.assuntos || []);
+            setTextoLivre(data.informacoesComplementares || '');
+          }
+        }
+      } catch (e) {
+        console.error('Erro ao carregar cadastro TTC:', e);
+      }
+    }
+    buscarCadastroExistente();
+  }, [cpfReal]);
 
   const toggleCategoria = (titulo: string) => {
     setCategoriasAbertas((prev) => ({ ...prev, [titulo]: !prev[titulo] }));
@@ -333,23 +362,36 @@ export default function CadastroTTCScreen() {
     setEnviando(true);
     try {
       const payload = {
+        cpf: cpfReal,
         distritos: distritosSelecionados,
-        omDesejada: omDesejada, // <-- Incluído no payload
+        omDesejada: omDesejada,
         assuntos: assuntosSelecionados,
         informacoesComplementares: textoLivre,
       };
-      console.log('Enviando para /cadastro-ttc:', payload);
-      setTimeout(() => {
-        setEnviando(false);
-        Alert.alert('Sucesso', 'Requerimento TTC salvo e publicado com sucesso!');
-      }, 800);
-    } catch {
-      setEnviando(false);
+
+      const response = await fetch(`${API_BASE_URL}/cadastro-ttc`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha ao salvar cadastro TTC.');
+      }
+
+      Alert.alert('Sucesso', 'Requerimento TTC salvo e publicado com sucesso!');
+    } catch (error) {
+      console.error(error);
       Alert.alert('Erro', 'Não foi possível concluir a publicação.');
+    } finally {
+      setEnviando(false);
     }
   };
 
-  const handleRemover = () => {
+  const handleRemover = async () => {
     Alert.alert(
       'Remover Publicação',
       'Tem certeza que deseja despublicar este cadastro TTC?',
@@ -358,12 +400,22 @@ export default function CadastroTTCScreen() {
         {
           text: 'Remover',
           style: 'destructive',
-          onPress: () => {
-            setDistritosSelecionados([]);
-            setOmDesejada(''); // <-- Limpa o campo da OM
-            setAssuntosSelecionados([]);
-            setTextoLivre('');
-            Alert.alert('Removido', 'Cadastro despublicado.');
+          onPress: async () => {
+            try {
+              if (cpfReal) {
+                await fetch(`${API_BASE_URL}/cadastro-ttc/${cpfReal}`, {
+                  method: 'DELETE',
+                  credentials: 'include',
+                });
+              }
+              setDistritosSelecionados([]);
+              setOmDesejada('');
+              setAssuntosSelecionados([]);
+              setTextoLivre('');
+              Alert.alert('Removido', 'Cadastro despublicado.');
+            } catch (e) {
+              Alert.alert('Erro', 'Não foi possível remover a publicação.');
+            }
           },
         },
       ]
@@ -378,7 +430,6 @@ export default function CadastroTTCScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#003366" />
 
-      {/* Header Fixo Padronizado Família Naval */}
       <View style={styles.headerBar}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()} style={styles.drawerButton}>
@@ -393,7 +444,6 @@ export default function CadastroTTCScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Banner Informativo / Autorização */}
         <View style={styles.authBanner}>
           <Ionicons name="lock-closed-outline" size={20} color={COLORS.primary} style={{ marginRight: 10 }} />
           <Text style={styles.authBannerText}>
@@ -401,7 +451,6 @@ export default function CadastroTTCScreen() {
           </Text>
         </View>
 
-        {/* DISTRITOS NAVAIS */}
         <Text style={styles.sectionTitle}>Distritos Navais Desejados</Text>
         <View style={styles.card}>
           {distritosSelecionados.length > 0 && (
@@ -413,8 +462,6 @@ export default function CadastroTTCScreen() {
                     key={`sel-${item}`}
                     style={[styles.chipItem, styles.chipSelecionado]}
                     onPress={() => adicionarOuRemoverDistrito(item)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Remover distrito ${item}`}
                   >
                     <Text style={styles.chipTextoSelecionado}>{item}</Text>
                     <Ionicons name="close" size={14} color="#FFF" style={{ marginLeft: 4 }} />
@@ -433,8 +480,6 @@ export default function CadastroTTCScreen() {
                 key={`disponivel-${item}`}
                 style={[styles.chipItem, styles.chipDisponivel]}
                 onPress={() => adicionarOuRemoverDistrito(item)}
-                accessibilityRole="button"
-                accessibilityLabel={`Adicionar distrito ${item}`}
               >
                 <Text style={styles.chipTextoDisponivel}>{item}</Text>
                 <Ionicons name="add" size={14} color={COLORS.primary} style={{ marginLeft: 4 }} />
@@ -443,7 +488,6 @@ export default function CadastroTTCScreen() {
           </View>
         </View>
 
-        {/* OM DESEJADA */}
         <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Organização Militar (OM) Desejada</Text>
         <View style={styles.card}>
           <TextInput
@@ -452,11 +496,9 @@ export default function CadastroTTCScreen() {
             style={styles.inputSingle}
             value={omDesejada}
             onChangeText={setOmDesejada}
-            accessibilityLabel="Organização Militar desejada"
           />
         </View>
 
-        {/* ÁREAS DE INTERESSE */}
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Áreas de Interesse</Text>
           <Text style={styles.counterBadge}>{assuntosSelecionados.length} selecionados</Text>
@@ -474,8 +516,6 @@ export default function CadastroTTCScreen() {
                 style={[styles.categoriaHeader, aberta && styles.categoriaHeaderOpen]}
                 onPress={() => toggleCategoria(categoria.titulo)}
                 activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: aberta }}
               >
                 <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Text style={styles.categoriaTitulo}>{categoria.titulo}</Text>
@@ -503,9 +543,6 @@ export default function CadastroTTCScreen() {
                         style={[styles.checkboxItem, selecionado && styles.checkboxItemActive]}
                         onPress={() => toggleAssunto(item)}
                         activeOpacity={0.7}
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: selecionado }}
-                        accessibilityLabel={`Assunto ${item}`}
                       >
                         <Ionicons
                           name={selecionado ? 'checkbox' : 'square-outline'}
@@ -525,7 +562,6 @@ export default function CadastroTTCScreen() {
           );
         })}
 
-        {/* INFORMAÇÕES COMPLEMENTARES */}
         <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Informações Complementares</Text>
         <View style={styles.card}>
           <TextInput
@@ -536,17 +572,14 @@ export default function CadastroTTCScreen() {
             style={styles.textArea}
             value={textoLivre}
             onChangeText={setTextoLivre}
-            accessibilityLabel="Informações complementares"
           />
         </View>
 
-        {/* BOTÕES DE AÇÃO */}
         <TouchableOpacity
           style={styles.botaoSalvar}
           onPress={handleSalvar}
           disabled={enviando}
           activeOpacity={0.8}
-          accessibilityRole="button"
         >
           {enviando ? (
             <ActivityIndicator color="#FFF" />
@@ -562,7 +595,6 @@ export default function CadastroTTCScreen() {
           style={styles.botaoRemover}
           onPress={handleRemover}
           activeOpacity={0.8}
-          accessibilityRole="button"
         >
           <Ionicons name="trash-outline" size={16} color={COLORS.danger} style={{ marginRight: 6 }} />
           <Text style={styles.botaoRemoverTexto}>Remover Publicação</Text>
@@ -586,244 +618,40 @@ const COLORS = {
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#003366',
-  },
-  headerBar: {
-    backgroundColor: '#003366',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  drawerButton: {
-    marginRight: 12,
-  },
-  headerSubtitle: {
-    color: '#b0c4de',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 40,
-    backgroundColor: COLORS.bg,
-    flexGrow: 1,
-  },
-  authBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primaryLight,
-    borderWidth: 1,
-    borderColor: '#C5DDF3',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-  },
-  authBannerText: {
-    color: COLORS.primary,
-    fontSize: 12,
-    fontWeight: '600',
-    flex: 1,
-    lineHeight: 18,
-  },
-  sectionTitle: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    marginTop: 12,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  counterBadge: {
-    backgroundColor: '#E2E8F0',
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: '600',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  card: {
-    backgroundColor: COLORS.white,
-    borderColor: COLORS.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    padding: 16,
-  },
-  subLabel: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  inputSingle: {
-    backgroundColor: '#F8F9FA',
-    borderColor: COLORS.borderLight,
-    borderRadius: 10,
-    borderWidth: 1,
-    color: COLORS.text,
-    fontSize: 14,
-    height: 48,
-    paddingHorizontal: 12,
-  },
-  chipsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chipItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  chipDisponivel: {
-    backgroundColor: COLORS.white,
-    borderColor: COLORS.border,
-  },
-  chipSelecionado: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  chipTextoDisponivel: {
-    color: COLORS.primary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  chipTextoSelecionado: {
-    color: COLORS.white,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  categoriaContainer: {
-    marginBottom: 10,
-  },
-  categoriaHeader: {
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    borderColor: COLORS.border,
-    borderWidth: 1,
-    padding: 14,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
-  },
-  categoriaHeaderOpen: {
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    backgroundColor: COLORS.primaryLight,
-    borderColor: '#C5DDF3',
-  },
-  categoriaTitulo: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  badgeCountCat: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  badgeCountCatText: {
-    color: '#FFF',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  cardCategoria: {
-    backgroundColor: COLORS.white,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    borderColor: '#C5DDF3',
-    borderTopWidth: 0,
-    borderWidth: 1,
-    padding: 12,
-  },
-  checkboxItem: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-  },
-  checkboxItemActive: {
-    backgroundColor: '#F0F7FF',
-  },
-  checkboxTexto: {
-    color: COLORS.text,
-    fontSize: 13,
-    flex: 1,
-  },
-  textArea: {
-    backgroundColor: '#F8F9FA',
-    borderColor: COLORS.borderLight,
-    borderRadius: 10,
-    borderWidth: 1,
-    color: COLORS.text,
-    fontSize: 14,
-    minHeight: 110,
-    padding: 12,
-    textAlignVertical: 'top',
-  },
-  botaoSalvar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.success,
-    borderRadius: 12,
-    marginTop: 24,
-    padding: 16,
-    elevation: 2,
-  },
-  botaoSalvarTexto: {
-    color: COLORS.white,
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
-  botaoRemover: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFEBEE',
-    borderWidth: 1,
-    borderColor: '#FFCDD2',
-    borderRadius: 12,
-    marginTop: 12,
-    padding: 14,
-  },
-  botaoRemoverTexto: {
-    color: COLORS.danger,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
+  safeArea: { flex: 1, backgroundColor: '#003366' },
+  headerBar: { backgroundColor: '#003366', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  drawerButton: { marginRight: 12 },
+  headerSubtitle: { color: '#b0c4de', fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },
+  headerTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40, backgroundColor: COLORS.bg, flexGrow: 1 },
+  authBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primaryLight, borderWidth: 1, borderColor: '#C5DDF3', borderRadius: 12, padding: 14, marginBottom: 16 },
+  authBannerText: { color: COLORS.primary, fontSize: 12, fontWeight: '600', flex: 1, lineHeight: 18 },
+  sectionTitle: { color: COLORS.primary, fontSize: 16, fontWeight: 'bold', marginBottom: 10, marginTop: 12 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, marginBottom: 10 },
+  counterBadge: { backgroundColor: '#E2E8F0', color: COLORS.textMuted, fontSize: 11, fontWeight: '600', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  card: { backgroundColor: COLORS.white, borderColor: COLORS.border, borderRadius: 16, borderWidth: 1, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, padding: 16 },
+  subLabel: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600', marginBottom: 8 },
+  inputSingle: { backgroundColor: '#F8F9FA', borderColor: COLORS.borderLight, borderRadius: 10, borderWidth: 1, color: COLORS.text, fontSize: 14, height: 48, paddingHorizontal: 12 },
+  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chipItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1 },
+  chipDisponivel: { backgroundColor: COLORS.white, borderColor: COLORS.border },
+  chipSelecionado: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  chipTextoDisponivel: { color: COLORS.primary, fontSize: 13, fontWeight: '600' },
+  chipTextoSelecionado: { color: COLORS.white, fontSize: 13, fontWeight: '600' },
+  categoriaContainer: { marginBottom: 10 },
+  categoriaHeader: { backgroundColor: COLORS.white, borderRadius: 12, borderColor: COLORS.border, borderWidth: 1, padding: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', elevation: 1, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 3 },
+  categoriaHeaderOpen: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, backgroundColor: COLORS.primaryLight, borderColor: '#C5DDF3' },
+  categoriaTitulo: { color: COLORS.primary, fontSize: 14, fontWeight: 'bold' },
+  badgeCountCat: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  badgeCountCatText: { color: '#FFF', fontSize: 11, fontWeight: 'bold' },
+  cardCategoria: { backgroundColor: COLORS.white, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderColor: '#C5DDF3', borderTopWidth: 0, borderWidth: 1, padding: 12 },
+  checkboxItem: { alignItems: 'center', flexDirection: 'row', paddingVertical: 8, paddingHorizontal: 8, borderRadius: 8 },
+  checkboxItemActive: { backgroundColor: '#F0F7FF' },
+  checkboxTexto: { color: COLORS.text, fontSize: 13, flex: 1 },
+  textArea: { backgroundColor: '#F8F9FA', borderColor: COLORS.borderLight, borderRadius: 10, borderWidth: 1, color: COLORS.text, fontSize: 14, minHeight: 110, padding: 12, textAlignVertical: 'top' },
+  botaoSalvar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.success, borderRadius: 12, marginTop: 24, padding: 16, elevation: 2 },
+  botaoSalvarTexto: { color: COLORS.white, fontSize: 15, fontWeight: 'bold' },
+  botaoRemover: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFEBEE', borderWidth: 1, borderColor: '#FFCDD2', borderRadius: 12, marginTop: 12, padding: 14 },
+  botaoRemoverTexto: { color: COLORS.danger, fontSize: 14, fontWeight: 'bold' },
 });

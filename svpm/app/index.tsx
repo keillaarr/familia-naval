@@ -1,7 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Asset } from 'expo-asset';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Pdf from 'react-native-pdf';
 import { WebView } from 'react-native-webview';
 
@@ -19,23 +19,16 @@ import {
   View
 } from 'react-native';
 
+import { useAuth } from '../hooks/useAuth';
+
 const { width } = Dimensions.get('window');
+const API_BASE_URL = 'http://10.0.2.2:8080/api/v1';
 
 import bemVindoReservaPdf from '../assets/documents/bemvindoreserva.pdf';
 import cartaServicoPdf from '../assets/documents/cartaservico.pdf';
 import jvpPdf from '../assets/documents/JVP60EDICAO.pdf';
 import pensaoCivilPdf from '../assets/documents/pensaocivil.pdf';
 import pensaoMilitarPdf from '../assets/documents/pensaomilitar.pdf';
-
-const useUserProfile = () => ({
-  user: {
-    nomeCompleto: 'DESENVOLVEDORA SVPM',
-    nomeExibição: 'Equipe Técnica',
-    nip: '00000000',
-    vinculo: 'Desenvolvimento / Suporte',
-    avatarInitials: 'DS',
-  },
-});
 
 type TabType = 'inicio' | 'solicitacoes' | 'links' | 'perfil' | 'pdf-viewer' | 'webview';
 
@@ -99,7 +92,6 @@ const SOLICITACOES_LIST = [
     color: '#003366',
     route: 'comunicados',
   },
-  
   {
     title: 'Cadastro TTC',
     icon: 'briefcase-account-outline',
@@ -149,18 +141,78 @@ const LINKS_UTEIS_LIST = [
 
 export default function FamiliaNavalScreen() {
   const navigation = useNavigation<any>();
-  const { user } = useUserProfile();
+  const { usuario } = useAuth();
+  
   const [activeTab, setActiveTab] = useState<TabType>('inicio');
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null);
   const [currentPdfTitle, setCurrentPdfTitle] = useState<string>('Documento PDF');
 
-  // Estados para controlar a WebView de sites externos
   const [currentWebUrl, setCurrentWebUrl] = useState<string | null>(null);
   const [currentWebTitle, setCurrentWebTitle] = useState<string>('Portal');
 
+  const [nomeDescriptografado, setNomeDescriptografado] = useState<string>('A carregar...');
+  const [dadosVinculo, setDadosVinculo] = useState<{ orgao: string; vinculo: string; matricula: string }>({
+    orgao: '-',
+    vinculo: '-',
+    matricula: '-',
+  });
+
   const horizontalScrollRef = useRef<ScrollView>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
+
+  const cpfUsuario = usuario?.cpf || '43243479568';
+  const idUser = usuario?.idPessoa || usuario?.idpessoa;
+
+  useEffect(() => {
+    async function buscarDadosCompletosDoBanco() {
+      try {
+        // 1. Busca dados de endereço/nome pelo CPF
+        if (cpfUsuario) {
+          const response = await fetch(`${API_BASE_URL}/endereco/cpf/${cpfUsuario}`, {
+            credentials: 'include',
+          });
+          if (response.ok) {
+            const data = await response.json();
+            if (data.nome && !data.nome.startsWith('\\xc')) {
+              setNomeDescriptografado(data.nome);
+            }
+          }
+        }
+
+        if (nomeDescriptografado === 'A carregar...' && usuario?.nome && !usuario.nome.startsWith('\\xc')) {
+          setNomeDescriptografado(usuario.nome);
+        }
+
+        // 2. Extração dos dados de vínculo, órgão e matrícula diretamente do objeto de sessão ou endpoint associado
+        const orgao = usuario?.siglaOm || usuario?.siglaom || 'COM2DN';
+        const vinculo = usuario?.tipoPessoaDescricao || usuario?.tipopessoadescricao || '';
+        const matricula = usuario?.matricula || usuario?.nip || '05810655';
+
+        setDadosVinculo({
+          orgao,
+          vinculo,
+          matricula,
+        });
+
+      } catch (e) {
+        console.error('Erro ao sincronizar dados do cabeçalho:', e);
+      }
+    }
+
+    buscarDadosCompletosDoBanco();
+  }, [usuario, cpfUsuario]);
+
+  const getInitials = (name: string) => {
+    if (!name || name === 'A carregar...') return 'ES';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  const avatarInitials = getInitials(nomeDescriptografado);
 
   const scrollServicos = (direction: 'left' | 'right') => {
     const cardWidth = 138;
@@ -196,7 +248,6 @@ export default function FamiliaNavalScreen() {
       if (Platform.OS === 'web') {
         (window as any).open(item.url, '_blank');
       } else {
-        // Abre o site diretamente na WebView interna do aplicativo
         setCurrentWebTitle(item.title);
         setCurrentWebUrl(item.url);
         setActiveTab('webview');
@@ -268,12 +319,12 @@ export default function FamiliaNavalScreen() {
             <View style={styles.welcomeCard}>
               <View style={styles.welcomeHeader}>
                 <View style={styles.avatarCircle}>
-                  <Text style={styles.avatarText}>{user.avatarInitials}</Text>
+                  <Text style={styles.avatarText}>{avatarInitials}</Text>
                 </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.welcomeSubtitle}>Órgão: SVPM</Text>
-                  <Text style={styles.welcomeTitle}>{user.nomeCompleto}</Text>
-                  <Text style={styles.nipText}>Identificação: {user.vinculo}</Text>
+                    <Text style={styles.welcomeTitle}>{nomeDescriptografado}</Text>
+                    <Text style={styles.nipText}>Identificação: {dadosVinculo.vinculo}</Text>
+                    <Text style={styles.nipText}>NIP: {dadosVinculo.matricula}</Text>
                 </View>
               </View>
             </View>
@@ -431,9 +482,9 @@ export default function FamiliaNavalScreen() {
         return (
           <View style={styles.tabPlaceholderContainer}>
             <Ionicons name="person-circle-outline" size={56} color="#003366" />
-            <Text style={styles.tabPlaceholderTitle}>{user.nomeCompleto}</Text>
-            <Text style={styles.tabPlaceholderSub}>Vínculo: {user.vinculo}</Text>
-            <Text style={styles.tabPlaceholderSub}>Perfil de acesso em ambiente integrado</Text>
+            <Text style={styles.tabPlaceholderTitle}>{nomeDescriptografado}</Text>
+            <Text style={styles.tabPlaceholderSub}>Vínculo: {dadosVinculo.vinculo}</Text>
+            <Text style={styles.tabPlaceholderSub}>{dadosVinculo.orgao} | Matrícula: {dadosVinculo.matricula}</Text>
           </View>
         );
     }
@@ -481,13 +532,13 @@ export default function FamiliaNavalScreen() {
           <View style={styles.drawerContainer}>
             <View style={styles.drawerHeader}>
               <View style={styles.drawerAvatar}>
-                <Text style={styles.avatarText}>{user.avatarInitials}</Text>
+                <Text style={styles.avatarText}>{avatarInitials}</Text>
               </View>
               <View style={{ marginLeft: 12, flex: 1 }}>
                 <Text style={styles.drawerUserName} numberOfLines={1}>
-                  {user.nomeCompleto}
+                  {nomeDescriptografado}
                 </Text>
-                <Text style={styles.drawerUserSub}>{user.vinculo}</Text>
+                <Text style={styles.drawerUserSub}>{dadosVinculo.vinculo}</Text>
               </View>
               <TouchableOpacity onPress={() => setDrawerVisible(false)}>
                 <Ionicons name="close" size={24} color="#fff" />
@@ -508,7 +559,7 @@ export default function FamiliaNavalScreen() {
 
               <Text style={styles.drawerSectionTitle}>Informações Pessoais</Text>
               {[
-                { label: 'Meus Dados', icon: 'person-outline', route: 'dados-pessoais' },
+                { label: 'Meus Dados', icon: 'person-outline', route: 'dados' },
                 { label: 'Meus Dependentes', icon: 'people-outline', route: 'consulta-dependentes' },
                 { label: 'Notificações', icon: 'notifications-outline', action: () => Alert.alert('Notificações', 'Sem novas notificações.') },
               ].map((item, idx) => (

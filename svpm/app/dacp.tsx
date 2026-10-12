@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,17 +13,41 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useAuth } from '../hooks/useAuth';
+
+const API_BASE_URL = 'http://10.0.2.2:8080/api/v1';
 
 export default function DeclaracaoAcumuloScreen() {
+  const { usuario } = useAuth();
   const [situacao, setSituacao] = useState<'NAO' | 'PERCEBO'>('NAO');
   const [orgaoPublico, setOrgaoPublico] = useState('');
   const [remuneracao, setRemuneracao] = useState('');
   const [loading, setLoading] = useState(false);
+  const [nomeUsuario, setNomeUsuario] = useState('GUILHERME SOUSA DA SILVA');
 
-  // Dados do usuário obtidos do contexto/sistema
-  const usuarioCpf = '00000028797';
-  const nomeUsuario = 'GUILHERME SOUSA DA SILVA';
-  const nipUsuario = '85856967';
+  const usuarioCpf = usuario?.cpf || usuario?.pessoa?.cpfPessoa || '00000028797';
+  const nipUsuario = usuario?.matricula || usuario?.nip || '85856967';
+
+  // Busca dados atualizados/descriptografados do usuário logado
+  useEffect(() => {
+    async function carregarUsuarioLogado() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/usuario/logado`, {
+          credentials: 'include',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const nomeVindo = data.nome || data.pessoa?.nomeCPessoa;
+          if (nomeVindo && !nomeVindo.startsWith('\\xc')) {
+            setNomeUsuario(nomeVindo);
+          }
+        }
+      } catch (e) {
+        console.error('Erro ao buscar dados do usuário:', e);
+      }
+    }
+    carregarUsuarioLogado();
+  }, []);
 
   const handleEnviarDeclaracao = async () => {
     if (situacao === 'PERCEBO' && (!orgaoPublico.trim() || !remuneracao.trim())) {
@@ -36,14 +60,15 @@ export default function DeclaracaoAcumuloScreen() {
 
       const dadosParaEnviar = {
         cpf: usuarioCpf,
-        dthora: new Date().toISOString().split('T')[0], // Formato AAAA-MM-DD para o tipo date do Postgres
+        dthora: new Date().toISOString().split('T')[0],
         situacao: situacao,
         orgaopublico: situacao === 'PERCEBO' ? orgaoPublico : null,
         remuneracao: situacao === 'PERCEBO' ? remuneracao : null,
       };
 
-      const res = await fetch('http://localhost:8080/api/v1/proventos', {
+      const res = await fetch(`${API_BASE_URL}/proventos`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -69,7 +94,6 @@ export default function DeclaracaoAcumuloScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#003366" />
 
-      {/* Header Fixo */}
       <View style={styles.headerBar}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -90,7 +114,6 @@ export default function DeclaracaoAcumuloScreen() {
             Eu, <Text style={styles.bold}>{nomeUsuario}</Text>, portador(a) do NIP {nipUsuario}, CPF {usuarioCpf}, declaro, <Text style={styles.underline}>sob as penas da Lei</Text>, que, além dos Proventos percebidos, por mim, dos cofres públicos, via Marinha do Brasil, na condição de Veterano(a)/Pensionista:
           </Text>
 
-          {/* Opção NÃO */}
           <TouchableOpacity 
             style={styles.radioOption} 
             activeOpacity={0.8}
@@ -104,7 +127,6 @@ export default function DeclaracaoAcumuloScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* Opção PERCEBO */}
           <TouchableOpacity 
             style={styles.radioOption} 
             activeOpacity={0.8}
@@ -118,7 +140,6 @@ export default function DeclaracaoAcumuloScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* Campos condicionais se escolher PERCEBO */}
           {situacao === 'PERCEBO' && (
             <View style={styles.conditionalContainer}>
               <TextInput
@@ -141,7 +162,6 @@ export default function DeclaracaoAcumuloScreen() {
             </View>
           )}
 
-          {/* Botão Enviar */}
           <TouchableOpacity 
             style={styles.btnEnviar} 
             onPress={handleEnviarDeclaracao}
@@ -154,12 +174,17 @@ export default function DeclaracaoAcumuloScreen() {
             )}
           </TouchableOpacity>
 
-          {/* Bloco de Avisos Importantes */}
           <View style={styles.importanteBox}>
             <Text style={styles.importanteTitle}>IMPORTANTE:</Text>
-            <Text style={styles.importanteItem}>• O recebimento de parcela referente à situação de <Text style={styles.underline}>TTC</Text> não deve ser considerada para fins de acumulação;</Text>
-            <Text style={styles.importanteItem}>• O SVPM verificará os princípios de legalidade, moralidade e impessoalidade quanto à situação de acumulação remunerada de cargos públicos, e o(a) informará brevemente, de acordo com as disposições legais, caso haja algo a se esclarecer;</Text>
-            <Text style={styles.importanteItem}>• O SVPM vem realizando auditorias constantes, em conjunto com o TCU, a fim de preservar o patrimônio público (erário) nos pagamentos de proventos a Veteranos e seus Pensionistas.</Text>
+            <Text style={styles.importanteItem}>
+              • O recebimento de parcela referente à situação de <Text style={styles.underline}>TTC</Text> não deve ser considerada para fins de acumulação;
+            </Text>
+            <Text style={styles.importanteItem}>
+              • O SVPM verificará os princípios de legalidade, moralidade e impessoalidade quanto à situação de acumulação remunerada de cargos públicos, e o(a) informará brevemente, de acordo com as disposições legais, caso haja algo a se esclarecer;
+            </Text>
+            <Text style={styles.importanteItem}>
+              • O SVPM vem realizando auditorias constantes, em conjunto com o TCU, a fim de preservar o patrimônio público (erário) nos pagamentos de proventos a Veteranos e seus Pensionistas.
+            </Text>
           </View>
         </View>
       </ScrollView>

@@ -1,11 +1,13 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Asset } from 'expo-asset';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import Pdf from 'react-native-pdf';
+import { WebView } from 'react-native-webview';
+
 import {
   Alert,
   Dimensions,
-  Linking,
   Modal,
   Platform,
   SafeAreaView,
@@ -14,29 +16,21 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
-const { width } = Dimensions.get('window');
+import { useAuth } from '../../hooks/useAuth';
 
-// Importação dos assets locais de documentos PDF usando rotas absolutas/alias ou caminhos corrigidos se necessário
+const { width } = Dimensions.get('window');
+const API_BASE_URL = 'http://10.0.2.2:8080/api/v1';
+
 import bemVindoReservaPdf from '../../assets/documents/bemvindoreserva.pdf';
 import cartaServicoPdf from '../../assets/documents/cartaservico.pdf';
 import jvpPdf from '../../assets/documents/JVP60EDICAO.pdf';
 import pensaoCivilPdf from '../../assets/documents/pensaocivil.pdf';
 import pensaoMilitarPdf from '../../assets/documents/pensaomilitar.pdf';
 
-const useUserProfile = () => ({
-  user: {
-    nomeCompleto: 'DESENVOLVEDORA SVPM',
-    nomeExibição: 'Equipe Técnica',
-    nip: '00000000',
-    vinculo: 'Desenvolvimento / Suporte',
-    avatarInitials: 'DS',
-  },
-});
-
-type TabType = 'inicio' | 'solicitacoes' | 'links' | 'perfil';
+type TabType = 'inicio' | 'solicitacoes' | 'links' | 'perfil' | 'pdf-viewer' | 'webview';
 
 const PRINCIPAIS_SERVICOS_LIST = [
   {
@@ -147,9 +141,102 @@ const LINKS_UTEIS_LIST = [
 
 export default function FamiliaNavalScreen() {
   const navigation = useNavigation<any>();
-  const { user } = useUserProfile();
+  const { usuario } = useAuth();
+  
   const [activeTab, setActiveTab] = useState<TabType>('inicio');
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null);
+  const [currentPdfTitle, setCurrentPdfTitle] = useState<string>('Documento PDF');
+
+  const [currentWebUrl, setCurrentWebUrl] = useState<string | null>(null);
+  const [currentWebTitle, setCurrentWebTitle] = useState<string>('Portal');
+
+  const [nomeDescriptografado, setNomeDescriptografado] = useState<string>('A carregar...');
+  const [dadosVinculo, setDadosVinculo] = useState<{ orgao: string; vinculo: string; matricula: string }>({
+    orgao: '-',
+    vinculo: '-',
+    matricula: '-',
+  });
+
+  const horizontalScrollRef = useRef<ScrollView>(null);
+  const [scrollPosition, setScrollPosition] = useState(0);
+
+  const cpfUsuario = usuario?.cpf || '43243479568';
+  const idUser = usuario?.idPessoa || usuario?.idpessoa;
+
+  useEffect(() => {
+    async function buscarDadosCompletosDoBanco() {
+      try {
+        // 1. Busca dados de endereço/nome pelo CPF
+        if (cpfUsuario) {
+          const response = await fetch(`${API_BASE_URL}/endereco/cpf/${cpfUsuario}`, {
+            credentials: 'include',
+          });
+          if (response.ok) {
+            const data = await response.json();
+            if (data.nome && !data.nome.startsWith('\\xc')) {
+              setNomeDescriptografado(data.nome);
+            }
+          }
+        }
+
+        if (nomeDescriptografado === 'A carregar...' && usuario?.nome && !usuario.nome.startsWith('\\xc')) {
+          setNomeDescriptografado(usuario.nome);
+        }
+
+        // 2. Extração dos dados de vínculo, órgão e matrícula diretamente do objeto de sessão ou endpoint associado
+        const orgao = usuario?.siglaOm || usuario?.siglaom || 'COM2DN';
+        const vinculo = usuario?.tipoPessoaDescricao || usuario?.tipopessoadescricao || '';
+        const matricula = usuario?.matricula || usuario?.nip || '05810655';
+
+        setDadosVinculo({
+          orgao,
+          vinculo,
+          matricula,
+        });
+
+      } catch (e) {
+        console.error('Erro ao sincronizar dados do cabeçalho:', e);
+      }
+    }
+
+    buscarDadosCompletosDoBanco();
+  }, [usuario, cpfUsuario]);
+
+  const getInitials = (name: string) => {
+    if (!name || name === 'A carregar...') return 'ES';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  const avatarInitials = getInitials(nomeDescriptografado);
+
+  const scrollServicos = (direction: 'left' | 'right') => {
+    const cardWidth = 138;
+    const newPosition = direction === 'left' 
+      ? Math.max(0, scrollPosition - cardWidth) 
+      : scrollPosition + cardWidth;
+    
+    horizontalScrollRef.current?.scrollTo({ x: newPosition, animated: true });
+    setScrollPosition(newPosition);
+  };
+
+  const handleOpenPdf = async (title: string, assetModule: any) => {
+    try {
+      const asset = Asset.fromModule(assetModule);
+      await asset.downloadAsync();
+      if (asset.uri) {
+        setCurrentPdfTitle(title);
+        setCurrentPdfUrl(asset.uri);
+        setActiveTab('pdf-viewer');
+      }
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível carregar o arquivo PDF.');
+    }
+  };
 
   const handleAction = async (item: {
     title: string;
@@ -161,16 +248,9 @@ export default function FamiliaNavalScreen() {
       if (Platform.OS === 'web') {
         (window as any).open(item.url, '_blank');
       } else {
-        try {
-          const supported = await Linking.canOpenURL(item.url);
-          if (supported) {
-            await Linking.openURL(item.url);
-          } else {
-            Alert.alert('Aviso', `Não foi possível abrir o link: ${item.url}`);
-          }
-        } catch (error) {
-          Alert.alert('Erro', 'Ocorreu um erro ao tentar abrir o link.');
-        }
+        setCurrentWebTitle(item.title);
+        setCurrentWebUrl(item.url);
+        setActiveTab('webview');
       }
     } else if (item.route) {
       try {
@@ -178,7 +258,7 @@ export default function FamiliaNavalScreen() {
       } catch (error) {
         Alert.alert(
           'Erro de Navegação',
-          `A rota "${item.route}" não foi registrada no Navigator ou o hook não alcançou o Stack.`
+          `A rota "${item.route}" não foi registrada no Navigator.`
         );
       }
     } else if (item.targetTab) {
@@ -190,18 +270,61 @@ export default function FamiliaNavalScreen() {
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'pdf-viewer':
+        return (
+          <View style={styles.pdfContainer}>
+            <View style={styles.pdfHeaderBar}>
+              <TouchableOpacity onPress={() => setActiveTab('inicio')} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="arrow-back" size={20} color="#003366" />
+                <Text style={{ color: '#003366', fontWeight: 'bold', marginLeft: 6 }}>Voltar</Text>
+              </TouchableOpacity>
+              <Text style={styles.pdfHeaderTitle} numberOfLines={1}>{currentPdfTitle}</Text>
+            </View>
+            {currentPdfUrl ? (
+              <Pdf
+                source={{ uri: currentPdfUrl, cache: true }}
+                trustAllCerts={false}
+                style={styles.pdfView}
+              />
+            ) : (
+              <Text style={{ textAlign: 'center', marginTop: 20 }}>Nenhum PDF selecionado.</Text>
+            )}
+          </View>
+        );
+
+      case 'webview':
+        return (
+          <View style={styles.pdfContainer}>
+            <View style={styles.pdfHeaderBar}>
+              <TouchableOpacity onPress={() => setActiveTab('inicio')} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="arrow-back" size={20} color="#003366" />
+                <Text style={{ color: '#003366', fontWeight: 'bold', marginLeft: 6 }}>Voltar</Text>
+              </TouchableOpacity>
+              <Text style={styles.pdfHeaderTitle} numberOfLines={1}>{currentWebTitle}</Text>
+            </View>
+            {currentWebUrl ? (
+              <WebView
+                source={{ uri: currentWebUrl }}
+                style={styles.pdfView}
+              />
+            ) : (
+              <Text style={{ textAlign: 'center', marginTop: 20 }}>Nenhum link carregado.</Text>
+            )}
+          </View>
+        );
+
       case 'inicio':
         return (
           <>
             <View style={styles.welcomeCard}>
               <View style={styles.welcomeHeader}>
                 <View style={styles.avatarCircle}>
-                  <Text style={styles.avatarText}>{user.avatarInitials}</Text>
+                  <Text style={styles.avatarText}>{avatarInitials}</Text>
                 </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.welcomeSubtitle}>Órgão: SVPM</Text>
-                  <Text style={styles.welcomeTitle}>{user.nomeCompleto}</Text>
-                  <Text style={styles.nipText}>Identificação: {user.vinculo}</Text>
+                    <Text style={styles.welcomeTitle}>{nomeDescriptografado}</Text>
+                    <Text style={styles.nipText}>Identificação: {dadosVinculo.vinculo}</Text>
+                    <Text style={styles.nipText}>NIP: {dadosVinculo.matricula}</Text>
                 </View>
               </View>
             </View>
@@ -210,24 +333,42 @@ export default function FamiliaNavalScreen() {
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Principais Serviços</Text>
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-                {PRINCIPAIS_SERVICOS_LIST.map((item, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.shortcutCard}
-                    onPress={() => handleAction(item)}
-                  >
-                    <View style={[styles.shortcutIconBg, { backgroundColor: '#f0f4f8' }]}>
-                      {item.iconLib === 'MaterialCommunityIcons' ? (
-                        <MaterialCommunityIcons name={item.icon as any} size={24} color={item.color} />
-                      ) : (
-                        <Ionicons name={item.icon as any} size={24} color={item.color} />
-                      )}
-                    </View>
-                    <Text style={styles.shortcutText} numberOfLines={3}>{item.title}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+
+              <View style={styles.carouselWrapper}>
+                <TouchableOpacity style={styles.cardArrowButton} onPress={() => scrollServicos('left')}>
+                  <Ionicons name="chevron-back" size={20} color="#003366" />
+                </TouchableOpacity>
+
+                <ScrollView 
+                  ref={horizontalScrollRef}
+                  horizontal 
+                  showsHorizontalScrollIndicator={false} 
+                  contentContainerStyle={styles.horizontalScroll}
+                  onScroll={(event) => setScrollPosition(event.nativeEvent.contentOffset.x)}
+                  scrollEventThrottle={16}
+                >
+                  {PRINCIPAIS_SERVICOS_LIST.map((item, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.shortcutCard}
+                      onPress={() => handleAction(item)}
+                    >
+                      <View style={[styles.shortcutIconBg, { backgroundColor: '#f0f4f8' }]}>
+                        {item.iconLib === 'MaterialCommunityIcons' ? (
+                          <MaterialCommunityIcons name={item.icon as any} size={24} color={item.color} />
+                        ) : (
+                          <Ionicons name={item.icon as any} size={24} color={item.color} />
+                        )}
+                      </View>
+                      <Text style={styles.shortcutText} numberOfLines={3}>{item.title}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                <TouchableOpacity style={styles.cardArrowButton} onPress={() => scrollServicos('right')}>
+                  <Ionicons name="chevron-forward" size={20} color="#003366" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.sectionContainer}>
@@ -239,11 +380,6 @@ export default function FamiliaNavalScreen() {
                     style={styles.gridItem}
                     onPress={() => handleAction(item)}
                   >
-                    {(item as any).badge && (
-                      <View style={styles.gridBadge}>
-                        <Text style={styles.badgeNewText}>{(item as any).badge}</Text>
-                      </View>
-                    )}
                     <View style={styles.gridIconBg}>
                       {item.iconLib === 'MaterialCommunityIcons' ? (
                         <MaterialCommunityIcons name={item.icon as any} size={26} color={item.color} />
@@ -298,11 +434,6 @@ export default function FamiliaNavalScreen() {
                   style={styles.gridTwoColumnsItem}
                   onPress={() => handleAction(item)}
                 >
-                  {(item as any).badge && (
-                    <View style={styles.gridBadge}>
-                      <Text style={styles.badgeNewText}>{(item as any).badge}</Text>
-                    </View>
-                  )}
                   <View style={styles.gridIconBg}>
                     {item.iconLib === 'MaterialCommunityIcons' ? (
                       <MaterialCommunityIcons name={item.icon as any} size={28} color={item.color} />
@@ -351,9 +482,9 @@ export default function FamiliaNavalScreen() {
         return (
           <View style={styles.tabPlaceholderContainer}>
             <Ionicons name="person-circle-outline" size={56} color="#003366" />
-            <Text style={styles.tabPlaceholderTitle}>{user.nomeCompleto}</Text>
-            <Text style={styles.tabPlaceholderSub}>Vínculo: {user.vinculo}</Text>
-            <Text style={styles.tabPlaceholderSub}>Perfil de acesso em ambiente integrado</Text>
+            <Text style={styles.tabPlaceholderTitle}>{nomeDescriptografado}</Text>
+            <Text style={styles.tabPlaceholderSub}>Vínculo: {dadosVinculo.vinculo}</Text>
+            <Text style={styles.tabPlaceholderSub}>{dadosVinculo.orgao} | Matrícula: {dadosVinculo.matricula}</Text>
           </View>
         );
     }
@@ -386,22 +517,28 @@ export default function FamiliaNavalScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        {renderContent()}
-      </ScrollView>
+      <View style={styles.container}>
+        {activeTab === 'pdf-viewer' || activeTab === 'webview' ? (
+          renderContent()
+        ) : (
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            {renderContent()}
+          </ScrollView>
+        )}
+      </View>
 
       <Modal visible={drawerVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.drawerContainer}>
             <View style={styles.drawerHeader}>
               <View style={styles.drawerAvatar}>
-                <Text style={styles.avatarText}>{user.avatarInitials}</Text>
+                <Text style={styles.avatarText}>{avatarInitials}</Text>
               </View>
               <View style={{ marginLeft: 12, flex: 1 }}>
                 <Text style={styles.drawerUserName} numberOfLines={1}>
-                  {user.nomeCompleto}
+                  {nomeDescriptografado}
                 </Text>
-                <Text style={styles.drawerUserSub}>{user.vinculo}</Text>
+                <Text style={styles.drawerUserSub}>{dadosVinculo.vinculo}</Text>
               </View>
               <TouchableOpacity onPress={() => setDrawerVisible(false)}>
                 <Ionicons name="close" size={24} color="#fff" />
@@ -409,7 +546,6 @@ export default function FamiliaNavalScreen() {
             </View>
 
             <ScrollView style={{ padding: 16 }}>
-              {/* Início */}
               <TouchableOpacity
                 style={styles.drawerItem}
                 onPress={() => {
@@ -421,10 +557,9 @@ export default function FamiliaNavalScreen() {
                 <Text style={styles.drawerItemText}>Início</Text>
               </TouchableOpacity>
 
-              {/* Seção: Informações Pessoais */}
               <Text style={styles.drawerSectionTitle}>Informações Pessoais</Text>
               {[
-                { label: 'Meus Dados', icon: 'person-outline', route: 'dados-pessoais' },
+                { label: 'Meus Dados', icon: 'person-outline', route: 'dados' },
                 { label: 'Meus Dependentes', icon: 'people-outline', route: 'consulta-dependentes' },
                 { label: 'Notificações', icon: 'notifications-outline', action: () => Alert.alert('Notificações', 'Sem novas notificações.') },
               ].map((item, idx) => (
@@ -445,7 +580,6 @@ export default function FamiliaNavalScreen() {
                 </TouchableOpacity>
               ))}
 
-              {/* Seção: Informativos */}
               <Text style={styles.drawerSectionTitle}>Informativos</Text>
               {[
                 { label: 'Carta de Serviço', icon: 'document-text-outline', asset: cartaServicoPdf },
@@ -457,17 +591,9 @@ export default function FamiliaNavalScreen() {
                 <TouchableOpacity
                   key={`info-${idx}`}
                   style={[styles.drawerItem, styles.drawerSubItem]}
-                  onPress={async () => {
+                  onPress={() => {
                     setDrawerVisible(false);
-                    try {
-                      const asset = Asset.fromModule(item.asset);
-                      await asset.downloadAsync();
-                      if (asset.uri) {
-                        handleAction({ title: item.label, url: asset.uri });
-                      }
-                    } catch (error) {
-                      Alert.alert('Erro', 'Não foi possível abrir o arquivo PDF.');
-                    }
+                    handleOpenPdf(item.label, item.asset);
                   }}
                 >
                   <Ionicons name={item.icon as any} size={20} color="#003366" style={{ width: 30 }} />
@@ -475,7 +601,6 @@ export default function FamiliaNavalScreen() {
                 </TouchableOpacity>
               ))}
 
-              {/* Seção: Mídias Sociais */}
               <Text style={styles.drawerSectionTitle}>Mídias Sociais</Text>
               {[
                 { label: 'Telegram', icon: 'paper-plane-outline', url: 'https://t.me/marinhadobrasil' },
@@ -502,32 +627,34 @@ export default function FamiliaNavalScreen() {
         </View>
       </Modal>
 
-      <View style={styles.bottomBar}>
-        {[
-          { key: 'inicio', label: 'Início', icon: 'home' },
-          { key: 'solicitacoes', label: 'Serviços', icon: 'list' },
-          { key: 'links', label: 'Links', icon: 'link' },
-          { key: 'perfil', label: 'Perfil', icon: 'person' },
-        ].map((tab) => {
-          const isActive = activeTab === tab.key;
-          return (
-            <TouchableOpacity
-              key={tab.key}
-              style={styles.bottomBarItem}
-              onPress={() => setActiveTab(tab.key as TabType)}
-            >
-              <Ionicons
-                name={(isActive ? tab.icon : `${tab.icon}-outline`) as any}
-                size={22}
-                color={isActive ? '#003366' : '#666'}
-              />
-              <Text style={[styles.bottomBarText, isActive && styles.bottomBarTextActive]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      {activeTab !== 'pdf-viewer' && activeTab !== 'webview' && (
+        <View style={styles.bottomBar}>
+          {[
+            { key: 'inicio', label: 'Início', icon: 'home' },
+            { key: 'solicitacoes', label: 'Serviços', icon: 'list' },
+            { key: 'links', label: 'Links', icon: 'link' },
+            { key: 'perfil', label: 'Perfil', icon: 'person' },
+          ].map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={styles.bottomBarItem}
+                onPress={() => setActiveTab(tab.key as TabType)}
+              >
+                <Ionicons
+                  name={(isActive ? tab.icon : `${tab.icon}-outline`) as any}
+                  size={22}
+                  color={isActive ? '#003366' : '#666'}
+                />
+                <Text style={[styles.bottomBarText, isActive && styles.bottomBarTextActive]}>
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -543,6 +670,10 @@ const styles = StyleSheet.create({
   headerIconBtn: { marginLeft: 14 },
   container: { flex: 1, backgroundColor: '#f5f7fa' },
   scrollContent: { paddingBottom: 100 },
+  pdfContainer: { flex: 1, backgroundColor: '#fff' },
+  pdfHeaderBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee', backgroundColor: '#f9f9f9' },
+  pdfHeaderTitle: { fontSize: 14, fontWeight: 'bold', color: '#333', marginLeft: 12, flex: 1 },
+  pdfView: { flex: 1, width: '100%', alignSelf: 'stretch' },
   welcomeCard: { backgroundColor: '#003366', paddingHorizontal: 20, paddingBottom: 24, paddingTop: 12, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
   welcomeHeader: { flexDirection: 'row', alignItems: 'center' },
   avatarCircle: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#1e4d7a', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#ffffff30' },
@@ -555,8 +686,10 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#222' },
   sectionSubtitle: { fontSize: 12, color: '#666', marginBottom: 12 },
   seeAllText: { color: '#003366', fontWeight: '600', fontSize: 13 },
-  horizontalScroll: { paddingRight: 16 },
-  shortcutCard: { width: 110, backgroundColor: '#fff', borderRadius: 14, padding: 10, marginRight: 12, alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
+  carouselWrapper: { flexDirection: 'row', alignItems: 'center' },
+  cardArrowButton: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  horizontalScroll: { paddingHorizontal: 8 },
+  shortcutCard: { width: 126, backgroundColor: '#fff', borderRadius: 14, padding: 10, marginHorizontal: 6, alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
   shortcutIconBg: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   shortcutText: { fontSize: 11, fontWeight: '600', color: '#333', textAlign: 'center', lineHeight: 14 },
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
@@ -564,8 +697,6 @@ const styles = StyleSheet.create({
   gridTwoColumnsContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   gridTwoColumnsItem: { width: (width - 40) / 2, backgroundColor: '#fff', borderRadius: 16, paddingVertical: 18, paddingHorizontal: 12, alignItems: 'center', marginBottom: 14, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
   gridTwoColumnsText: { fontSize: 12.5, fontWeight: '600', color: '#333', textAlign: 'center', lineHeight: 16, marginTop: 8 },
-  gridBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: '#28a745', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4, zIndex: 1 },
-  badgeNewText: { color: '#fff', fontSize: 9, fontWeight: 'bold' },
   gridIconBg: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#f0f4f8', alignItems: 'center', justifyContent: 'center' },
   gridText: { fontSize: 10.5, fontWeight: '500', color: '#333', textAlign: 'center', lineHeight: 14 },
   tabPlaceholderContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#f5f7fa' },

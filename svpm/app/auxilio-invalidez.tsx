@@ -13,8 +13,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useAuth } from '../hooks/useAuth';
+
+const API_BASE_URL = 'http://10.0.2.2:8080/api/v1';
 
 export default function AuxilioInvalidezScreen() {
+  const { usuario } = useAuth();
+  
   const [exerceAtividade, setExerceAtividade] = useState<boolean>(false);
   const [cienteTermos, setCienteTermos] = useState<boolean>(false);
   const [loadingCep, setLoadingCep] = useState<boolean>(false);
@@ -31,28 +36,41 @@ export default function AuxilioInvalidezScreen() {
     email: '',
   });
 
+  // Dados reais vindos da sessão do usuário
+  const nomeReal = usuario?.nome || usuario?.pessoa?.nomeCPessoa || 'UTILIZADOR';
+  const nipReal = usuario?.matricula || usuario?.nip || '-';
+  const cpfReal = usuario?.cpf || usuario?.pessoa?.cpfPessoa || '';
+
   useEffect(() => {
     const carregarDadosDoBanco = async () => {
       try {
-        setTimeout(() => {
-          setForm({
-            cep: '21041-190',
-            endereco: 'Rua Engenheiro Artur Moura, 456, BL6 AP405',
-            bairro: 'Bonsucesso',
-            cidade: 'Rio de Janeiro',
-            uf: 'RJ',
-            telefone: '(21) 98032-4930',
-            email: 'usuario@marinha.mil.br',
+        setLoadingDadosBanco(true);
+        if (cpfReal) {
+          const response = await fetch(`${API_BASE_URL}/endereco/cpf/${cpfReal}`, {
+            credentials: 'include',
           });
-          setLoadingDadosBanco(false);
-        }, 800);
+          if (response.ok) {
+            const data = await response.json();
+            setForm({
+              cep: data.cep || '',
+              endereco: data.logradouro || data.endereco || '',
+              bairro: data.bairro || '',
+              cidade: data.cidade || '',
+              uf: data.uf || '',
+              telefone: data.telefone || '',
+              email: data.email || usuario?.email || '',
+            });
+          }
+        }
       } catch (error) {
+        console.error('Erro ao buscar dados do endereço:', error);
+      } finally {
         setLoadingDadosBanco(false);
       }
     };
 
     carregarDadosDoBanco();
-  }, []);
+  }, [cpfReal, usuario]);
 
   const handleChange = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -105,7 +123,7 @@ export default function AuxilioInvalidezScreen() {
     }
   };
 
-  const handleEnviar = () => {
+  const handleEnviar = async () => {
     if (!form.cep || !form.endereco || !form.cidade || !form.telefone) {
       Alert.alert('Campos Obrigatórios', 'Por favor, preencha os dados de endereço e telefone.');
       return;
@@ -116,18 +134,39 @@ export default function AuxilioInvalidezScreen() {
       return;
     }
 
-    if (exerceAtividade) {
-      Alert.alert(
-        'Declaração Registrada',
-        'Sua declaração indicando o exercício de atividade remunerada foi enviada. O SVPM analisará as informações prestadas.',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
-    } else {
-      Alert.alert(
-        'Declaração Enviada',
-        'Sua Declaração Anual de Auxílio-Invalidez foi transmitida com sucesso.',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+    try {
+      const response = await fetch(`${API_BASE_URL}/pessoa/auxilio-invalidez/${cpfReal}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...form,
+          exerceAtividade,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha ao enviar declaração.');
+      }
+
+      if (exerceAtividade) {
+        Alert.alert(
+          'Declaração Registrada',
+          'Sua declaração indicando o exercício de atividade remunerada foi enviada. O SVPM analisará as informações prestadas.',
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+      } else {
+        Alert.alert(
+          'Declaração Enviada',
+          'Sua Declaração Anual de Auxílio-Invalidez foi transmitida com sucesso.',
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Erro', 'Não foi possível transmitir a declaração ao servidor.');
     }
   };
 
@@ -135,7 +174,6 @@ export default function AuxilioInvalidezScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#003366" />
 
-      {/* Header Fixo Padronizado Família Naval */}
       <View style={styles.headerBar}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -150,7 +188,6 @@ export default function AuxilioInvalidezScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* CARD PRINCIPAL */}
         <View style={styles.cardItem}>
           <View style={styles.docHeaderBadge}>
             <Ionicons name="document-text-outline" size={22} color={COLORS.primary} />
@@ -160,14 +197,13 @@ export default function AuxilioInvalidezScreen() {
           </View>
 
           <Text style={styles.declarationText}>
-            Eu, <Text style={styles.boldText}>SO GUILHERME SOUSA DA SILVA</Text>, portador(a) do NIP{' '}
-            <Text style={styles.boldText}>85856967</Text>, CPF{' '}
-            <Text style={styles.boldText}>00000028797</Text>, recebendo a Parcela de Auxílio-Invalidez por
+            Eu, <Text style={styles.boldText}>{nomeReal}</Text>, portador(a) do NIP{' '}
+            <Text style={styles.boldText}>{nipReal}</Text>, CPF{' '}
+            <Text style={styles.boldText}>{cpfReal}</Text>, recebendo a Parcela de Auxílio-Invalidez por
             intermédio do SERVIÇO DE VETERANOS E PENSIONISTAS DA MARINHA, declaro, para fins do artigo 78 do
             DECRETO nº. 4.307 de 18 de julho de 2002, que:
           </Text>
 
-          {/* PERGUNTA CHAVE (SEGMENTED BUTTONS) */}
           <View style={styles.questionBox}>
             <Text style={styles.questionText}>
               Exerce atividade remunerada pública ou privada?
@@ -193,7 +229,6 @@ export default function AuxilioInvalidezScreen() {
             </View>
           </View>
 
-          {/* AVISOS LEGAIS COM CHECKBOX OBRIGATÓRIA */}
           <TouchableOpacity
             activeOpacity={0.8}
             style={[styles.infoBox, cienteTermos && styles.infoBoxChecked]}
@@ -212,7 +247,6 @@ export default function AuxilioInvalidezScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* CABEÇALHO DA SEÇÃO DE ENDEREÇO */}
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionHeader}>Dados de Contato e Endereço</Text>
             <TouchableOpacity
@@ -238,7 +272,6 @@ export default function AuxilioInvalidezScreen() {
             </View>
           ) : (
             <>
-              {/* CEP */}
               <View style={styles.inputGroup}>
                 <View style={styles.labelRow}>
                   <Text style={styles.label}>CEP</Text>
@@ -255,7 +288,6 @@ export default function AuxilioInvalidezScreen() {
                 />
               </View>
 
-              {/* ENDEREÇO */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Endereço (Rua, Nº, Apto, etc.)</Text>
                 <TextInput
@@ -267,7 +299,6 @@ export default function AuxilioInvalidezScreen() {
                 />
               </View>
 
-              {/* BAIRRO */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Bairro</Text>
                 <TextInput
@@ -279,7 +310,6 @@ export default function AuxilioInvalidezScreen() {
                 />
               </View>
 
-              {/* CIDADE */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Cidade</Text>
                 <TextInput
@@ -291,7 +321,6 @@ export default function AuxilioInvalidezScreen() {
                 />
               </View>
 
-              {/* UF */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>UF</Text>
                 <TextInput
@@ -305,7 +334,6 @@ export default function AuxilioInvalidezScreen() {
                 />
               </View>
 
-              {/* TELEFONE */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Telefone</Text>
                 <TextInput
@@ -319,7 +347,6 @@ export default function AuxilioInvalidezScreen() {
                 />
               </View>
 
-              {/* EMAIL */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>E-mail</Text>
                 <TextInput
@@ -335,7 +362,6 @@ export default function AuxilioInvalidezScreen() {
             </>
           )}
 
-          {/* AÇÕES */}
           <TouchableOpacity activeOpacity={0.8} style={styles.btnPrimary} onPress={handleEnviar}>
             <Text style={styles.btnPrimaryText}>Enviar Declaração</Text>
           </TouchableOpacity>
@@ -362,260 +388,46 @@ const COLORS = {
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#003366',
-  },
-  headerBar: {
-    backgroundColor: '#003366',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backButton: {
-    marginRight: 12,
-  },
-  headerSubtitle: {
-    color: '#B0C4DE',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 40,
-    backgroundColor: COLORS.bg,
-    flexGrow: 1,
-  },
-  cardItem: {
-    backgroundColor: COLORS.white,
-    borderColor: COLORS.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-  },
-  docHeaderBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primaryLight,
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#C5DDF3',
-  },
-  docTitle: {
-    color: COLORS.primary,
-    fontSize: 13,
-    fontWeight: 'bold',
-    marginLeft: 10,
-    flex: 1,
-    lineHeight: 18,
-  },
-  declarationText: {
-    color: COLORS.text,
-    fontSize: 13,
-    lineHeight: 20,
-    marginBottom: 16,
-    textAlign: 'justify',
-  },
-  boldText: {
-    fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  questionBox: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 14,
-    borderColor: COLORS.borderLight,
-    borderWidth: 1,
-  },
-  questionText: {
-    color: COLORS.primary,
-    fontSize: 13,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  segmentedContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#E2E8F0',
-    borderRadius: 10,
-    padding: 4,
-  },
-  segmentBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  segmentActiveNo: {
-    backgroundColor: COLORS.primary,
-  },
-  segmentActiveYes: {
-    backgroundColor: '#D32F2F',
-  },
-  segmentText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#4A5568',
-  },
-  segmentTextActive: {
-    color: '#FFFFFF',
-  },
-  infoBox: {
-    backgroundColor: '#FFF8E1',
-    borderColor: '#FFE082',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 20,
-  },
-  infoBoxChecked: {
-    backgroundColor: '#FEF9E7',
-    borderColor: '#F6C343',
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: '#795548',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-    backgroundColor: '#FFFFFF',
-  },
-  checkboxChecked: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  checkboxLabel: {
-    color: '#5D4037',
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  infoText: {
-    color: '#5D4037',
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
-    paddingBottom: 8,
-  },
-  sectionHeader: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  btnEditar: {
-    backgroundColor: COLORS.primaryLight,
-    borderColor: '#C5DDF3',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  btnEditarTexto: {
-    color: COLORS.primary,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  loadingContainer: {
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 8,
-    color: COLORS.textMuted,
-    fontSize: 13,
-  },
-  inputGroup: {
-    marginBottom: 12,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  label: {
-    color: COLORS.text,
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  input: {
-    backgroundColor: '#FFFFFF',
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    borderWidth: 1,
-    fontSize: 14,
-    height: 44,
-    paddingHorizontal: 12,
-    color: COLORS.text,
-  },
-  inputDisabled: {
-    backgroundColor: '#F0F4F8',
-    color: COLORS.textMuted,
-    borderColor: COLORS.border,
-  },
-  btnPrimary: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  btnPrimaryText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  btnSecondary: {
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-  },
-  btnSecondaryText: {
-    color: COLORS.textMuted,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
+  safeArea: { flex: 1, backgroundColor: '#003366' },
+  headerBar: { backgroundColor: '#003366', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  backButton: { marginRight: 12 },
+  headerSubtitle: { color: '#B0C4DE', fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },
+  headerTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40, backgroundColor: COLORS.bg, flexGrow: 1 },
+  cardItem: { backgroundColor: COLORS.white, borderColor: COLORS.border, borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
+  docHeaderBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primaryLight, padding: 12, borderRadius: 12, marginBottom: 14, borderWidth: 1, borderColor: '#C5DDF3' },
+  docTitle: { color: COLORS.primary, fontSize: 13, fontWeight: 'bold', marginLeft: 10, flex: 1, lineHeight: 18 },
+  declarationText: { color: COLORS.text, fontSize: 13, lineHeight: 20, marginBottom: 16, textAlign: 'justify' },
+  boldText: { fontWeight: 'bold', color: COLORS.primary },
+  questionBox: { backgroundColor: '#F8F9FA', borderRadius: 12, padding: 14, marginBottom: 14, borderColor: COLORS.borderLight, borderWidth: 1 },
+  questionText: { color: COLORS.primary, fontSize: 13, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
+  segmentedContainer: { flexDirection: 'row', backgroundColor: '#E2E8F0', borderRadius: 10, padding: 4 },
+  segmentBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
+  segmentActiveNo: { backgroundColor: COLORS.primary },
+  segmentActiveYes: { backgroundColor: '#D32F2F' },
+  segmentText: { fontSize: 12, fontWeight: 'bold', color: '#4A5568' },
+  segmentTextActive: { color: '#FFFFFF' },
+  infoBox: { backgroundColor: '#FFF8E1', borderColor: '#FFE082', borderWidth: 1, borderRadius: 12, padding: 14, marginBottom: 20 },
+  infoBoxChecked: { backgroundColor: '#FEF9E7', borderColor: '#F6C343' },
+  checkboxRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: '#795548', alignItems: 'center', justifyContent: 'center', marginRight: 10, backgroundColor: '#FFFFFF' },
+  checkboxChecked: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  checkboxLabel: { color: '#5D4037', fontSize: 13, fontWeight: 'bold' },
+  infoText: { color: '#5D4037', fontSize: 12, lineHeight: 18 },
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, borderBottomWidth: 1, borderBottomColor: COLORS.borderLight, paddingBottom: 8 },
+  sectionHeader: { color: COLORS.primary, fontSize: 14, fontWeight: 'bold' },
+  btnEditar: { backgroundColor: COLORS.primaryLight, borderColor: '#C5DDF3', borderWidth: 1, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center' },
+  btnEditarTexto: { color: COLORS.primary, fontSize: 12, fontWeight: 'bold' },
+  loadingContainer: { paddingVertical: 20, alignItems: 'center' },
+  loadingText: { marginTop: 8, color: COLORS.textMuted, fontSize: 13 },
+  inputGroup: { marginBottom: 12 },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  label: { color: COLORS.text, fontSize: 12, fontWeight: '600', marginBottom: 4 },
+  input: { backgroundColor: '#FFFFFF', borderColor: COLORS.border, borderRadius: 10, borderWidth: 1, fontSize: 14, height: 44, paddingHorizontal: 12, color: COLORS.text },
+  inputDisabled: { backgroundColor: '#F0F4F8', color: COLORS.textMuted, borderColor: COLORS.border },
+  btnPrimary: { backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
+  btnPrimaryText: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold' },
+  btnSecondary: { backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  btnSecondaryText: { color: COLORS.textMuted, fontSize: 14, fontWeight: 'bold' },
 });
