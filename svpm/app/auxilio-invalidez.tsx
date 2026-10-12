@@ -15,9 +15,14 @@ import {
 } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
 
+
+
+
 const API_BASE_URL = 'http://10.0.2.2:8080/api/v1';
 
 export default function AuxilioInvalidezScreen() {
+
+  
   const { usuario } = useAuth();
   
   const [exerceAtividade, setExerceAtividade] = useState<boolean>(false);
@@ -35,6 +40,8 @@ export default function AuxilioInvalidezScreen() {
     telefone: '',
     email: '',
   });
+
+  
 
   // Dados reais vindos da sessão do usuário
   const nomeReal = usuario?.nome || usuario?.pessoa?.nomeCPessoa || 'UTILIZADOR';
@@ -374,6 +381,8 @@ export default function AuxilioInvalidezScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+
+  
 }
 
 const COLORS = {

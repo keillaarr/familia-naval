@@ -19,125 +19,14 @@ import {
   View
 } from 'react-native';
 
+import { LINKS_UTEIS_LIST, PRINCIPAIS_SERVICOS_LIST, SOLICITACOES_LIST } from '../constants/menu';
+import { SECOES_MENU_LATERAL } from '../constants/menu_inicial';
 import { useAuth } from '../hooks/useAuth';
 
 const { width } = Dimensions.get('window');
 const API_BASE_URL = 'http://10.0.2.2:8080/api/v1';
 
-import bemVindoReservaPdf from '../assets/documents/bemvindoreserva.pdf';
-import cartaServicoPdf from '../assets/documents/cartaservico.pdf';
-import jvpPdf from '../assets/documents/JVP60EDICAO.pdf';
-import pensaoCivilPdf from '../assets/documents/pensaocivil.pdf';
-import pensaoMilitarPdf from '../assets/documents/pensaomilitar.pdf';
-
 type TabType = 'inicio' | 'solicitacoes' | 'links' | 'perfil' | 'pdf-viewer' | 'webview';
-
-const PRINCIPAIS_SERVICOS_LIST = [
-  {
-    title: 'Consultas',
-    icon: 'search-outline',
-    iconLib: 'Ionicons',
-    color: '#003366',
-    route: 'consulta',
-  },
-  {
-    title: 'Declaração de Dependentes IR',
-    icon: 'people-outline',
-    iconLib: 'Ionicons',
-    color: '#003366',
-    url: 'https://portalcidadao.dataprev.gov.br/#/mb/r/novo-pedido/informacao/2709/declaracao-de-dependentes-para-fins-de-imposto-de-renda-retido-na-fonte',
-  },
-  {
-    title: 'Prova de Vida',
-    icon: 'shield-check-outline',
-    iconLib: 'MaterialCommunityIcons',
-    color: '#003366',
-    route: 'prova-de-vida',
-  },
-  {
-    title: 'Declaração Anual Para Percepção Do Auxílio-Invalidez',
-    icon: 'file-document-edit-outline',
-    iconLib: 'MaterialCommunityIcons',
-    color: '#003366',
-    route: 'auxilio-invalidez',
-  },
-];
-
-const SOLICITACOES_LIST = [
-  {
-    title: 'Consulta Dependentes',
-    icon: 'account-group-outline',
-    iconLib: 'MaterialCommunityIcons',
-    color: '#003366',
-    route: 'consulta-dependentes',
-  },
-  {
-    title: 'Declaração de Acúmulo de Cargos Públicos',
-    icon: 'scale-balance',
-    iconLib: 'MaterialCommunityIcons',
-    color: '#003366',
-    route: 'dacp',
-  },
-  {
-    title: 'Declaração Anual Para Percepção Do Auxílio-Invalidez',
-    icon: 'file-document-edit-outline',
-    iconLib: 'MaterialCommunityIcons',
-    color: '#003366',
-    route: 'auxilio-invalidez',
-  },
-  {
-    title: 'Comunicados DPM',
-    icon: 'bullhorn-outline',
-    iconLib: 'MaterialCommunityIcons',
-    color: '#003366',
-    route: 'comunicados',
-  },
-  {
-    title: 'Cadastro TTC',
-    icon: 'briefcase-account-outline',
-    iconLib: 'MaterialCommunityIcons',
-    color: '#003366',
-    route: 'cadastro-ttc',
-  },
-];
-
-const LINKS_UTEIS_LIST = [
-  {
-    title: 'BP-Online (Contracheque)',
-    icon: 'card-account-details-outline',
-    iconLib: 'MaterialCommunityIcons',
-    color: '#003366',
-    url: 'https://bponline.marinha.mil.br/bponline/login',
-  },
-  {
-    title: 'Consignado (Econsig)',
-    icon: 'bank-outline',
-    iconLib: 'MaterialCommunityIcons',
-    color: '#003366',
-    url: 'https://papem.econsigmb.com.br/mb/v3/autenticar#no-back',
-  },
-  {
-    title: 'Pesquisa de Avaliação de Atendimento',
-    icon: 'clipboard-text-outline',
-    iconLib: 'MaterialCommunityIcons',
-    color: '#003366',
-    url: 'https://www.marinha.mil.br/svpm/form/pesquisaAtendimento',
-  },
-  {
-    title: 'Abrigo do Marinheiro',
-    icon: 'home-heart',
-    iconLib: 'MaterialCommunityIcons',
-    color: '#003366',
-    url: 'https://www.abrigo.org.br/',
-  },
-  {
-    title: 'Identidade Digital',
-    icon: 'card-bulleted-outline',
-    iconLib: 'MaterialCommunityIcons',
-    color: '#003366',
-    url: 'https://websitesvpm.marinha.mil.br/links',
-  },
-];
 
 export default function FamiliaNavalScreen() {
   const navigation = useNavigation<any>();
@@ -162,12 +51,10 @@ export default function FamiliaNavalScreen() {
   const [scrollPosition, setScrollPosition] = useState(0);
 
   const cpfUsuario = usuario?.cpf || '43243479568';
-  const idUser = usuario?.idPessoa || usuario?.idpessoa;
 
   useEffect(() => {
     async function buscarDadosCompletosDoBanco() {
       try {
-        // 1. Busca dados de endereço/nome pelo CPF
         if (cpfUsuario) {
           const response = await fetch(`${API_BASE_URL}/endereco/cpf/${cpfUsuario}`, {
             credentials: 'include',
@@ -184,17 +71,11 @@ export default function FamiliaNavalScreen() {
           setNomeDescriptografado(usuario.nome);
         }
 
-        // 2. Extração dos dados de vínculo, órgão e matrícula diretamente do objeto de sessão ou endpoint associado
         const orgao = usuario?.siglaOm || usuario?.siglaom || 'COM2DN';
         const vinculo = usuario?.tipoPessoaDescricao || usuario?.tipopessoadescricao || '';
         const matricula = usuario?.matricula || usuario?.nip || '05810655';
 
-        setDadosVinculo({
-          orgao,
-          vinculo,
-          matricula,
-        });
-
+        setDadosVinculo({ orgao, vinculo, matricula });
       } catch (e) {
         console.error('Erro ao sincronizar dados do cabeçalho:', e);
       }
@@ -206,20 +87,14 @@ export default function FamiliaNavalScreen() {
   const getInitials = (name: string) => {
     if (!name || name === 'A carregar...') return 'ES';
     const parts = name.split(' ');
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
+    return parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : name.substring(0, 2).toUpperCase();
   };
 
   const avatarInitials = getInitials(nomeDescriptografado);
 
   const scrollServicos = (direction: 'left' | 'right') => {
     const cardWidth = 138;
-    const newPosition = direction === 'left' 
-      ? Math.max(0, scrollPosition - cardWidth) 
-      : scrollPosition + cardWidth;
-    
+    const newPosition = direction === 'left' ? Math.max(0, scrollPosition - cardWidth) : scrollPosition + cardWidth;
     horizontalScrollRef.current?.scrollTo({ x: newPosition, animated: true });
     setScrollPosition(newPosition);
   };
@@ -238,12 +113,7 @@ export default function FamiliaNavalScreen() {
     }
   };
 
-  const handleAction = async (item: {
-    title: string;
-    url?: string;
-    targetTab?: TabType;
-    route?: string;
-  }) => {
+  const handleAction = async (item: { title: string; url?: string; targetTab?: TabType; route?: string }) => {
     if (item.url) {
       if (Platform.OS === 'web') {
         (window as any).open(item.url, '_blank');
@@ -256,10 +126,7 @@ export default function FamiliaNavalScreen() {
       try {
         navigation.navigate(item.route);
       } catch (error) {
-        Alert.alert(
-          'Erro de Navegação',
-          `A rota "${item.route}" não foi registrada no Navigator.`
-        );
+        Alert.alert('Erro de Navegação', `A rota "${item.route}" não foi registrada no Navigator.`);
       }
     } else if (item.targetTab) {
       setActiveTab(item.targetTab);
@@ -271,27 +138,6 @@ export default function FamiliaNavalScreen() {
   const renderContent = () => {
     switch (activeTab) {
       case 'pdf-viewer':
-        return (
-          <View style={styles.pdfContainer}>
-            <View style={styles.pdfHeaderBar}>
-              <TouchableOpacity onPress={() => setActiveTab('inicio')} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="arrow-back" size={20} color="#003366" />
-                <Text style={{ color: '#003366', fontWeight: 'bold', marginLeft: 6 }}>Voltar</Text>
-              </TouchableOpacity>
-              <Text style={styles.pdfHeaderTitle} numberOfLines={1}>{currentPdfTitle}</Text>
-            </View>
-            {currentPdfUrl ? (
-              <Pdf
-                source={{ uri: currentPdfUrl, cache: true }}
-                trustAllCerts={false}
-                style={styles.pdfView}
-              />
-            ) : (
-              <Text style={{ textAlign: 'center', marginTop: 20 }}>Nenhum PDF selecionado.</Text>
-            )}
-          </View>
-        );
-
       case 'webview':
         return (
           <View style={styles.pdfContainer}>
@@ -300,15 +146,14 @@ export default function FamiliaNavalScreen() {
                 <Ionicons name="arrow-back" size={20} color="#003366" />
                 <Text style={{ color: '#003366', fontWeight: 'bold', marginLeft: 6 }}>Voltar</Text>
               </TouchableOpacity>
-              <Text style={styles.pdfHeaderTitle} numberOfLines={1}>{currentWebTitle}</Text>
+              <Text style={styles.pdfHeaderTitle} numberOfLines={1}>{activeTab === 'pdf-viewer' ? currentPdfTitle : currentWebTitle}</Text>
             </View>
-            {currentWebUrl ? (
-              <WebView
-                source={{ uri: currentWebUrl }}
-                style={styles.pdfView}
-              />
+            {activeTab === 'pdf-viewer' && currentPdfUrl ? (
+              <Pdf source={{ uri: currentPdfUrl, cache: true }} trustAllCerts={false} style={styles.pdfView} />
+            ) : activeTab === 'webview' && currentWebUrl ? (
+              <WebView source={{ uri: currentWebUrl }} style={styles.pdfView} />
             ) : (
-              <Text style={{ textAlign: 'center', marginTop: 20 }}>Nenhum link carregado.</Text>
+              <Text style={{ textAlign: 'center', marginTop: 20 }}>Conteúdo indisponível.</Text>
             )}
           </View>
         );
@@ -322,37 +167,27 @@ export default function FamiliaNavalScreen() {
                   <Text style={styles.avatarText}>{avatarInitials}</Text>
                 </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={styles.welcomeTitle}>{nomeDescriptografado}</Text>
-                    <Text style={styles.nipText}>Identificação: {dadosVinculo.vinculo}</Text>
-                    <Text style={styles.nipText}>NIP: {dadosVinculo.matricula}</Text>
+                  <Text style={styles.welcomeTitle}>{nomeDescriptografado}</Text>
+                  <Text style={styles.nipText}>Identificação: {dadosVinculo.vinculo}</Text>
+                  <Text style={styles.nipText}>NIP: {dadosVinculo.matricula}</Text>
                 </View>
               </View>
             </View>
 
             <View style={styles.sectionContainer}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Principais Serviços</Text>
-              </View>
-
+              <Text style={styles.sectionTitle}>Principais Serviços</Text>
               <View style={styles.carouselWrapper}>
                 <TouchableOpacity style={styles.cardArrowButton} onPress={() => scrollServicos('left')}>
                   <Ionicons name="chevron-back" size={20} color="#003366" />
                 </TouchableOpacity>
-
                 <ScrollView 
                   ref={horizontalScrollRef}
                   horizontal 
                   showsHorizontalScrollIndicator={false} 
                   contentContainerStyle={styles.horizontalScroll}
-                  onScroll={(event) => setScrollPosition(event.nativeEvent.contentOffset.x)}
-                  scrollEventThrottle={16}
                 >
                   {PRINCIPAIS_SERVICOS_LIST.map((item, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={styles.shortcutCard}
-                      onPress={() => handleAction(item)}
-                    >
+                    <TouchableOpacity key={index} style={styles.shortcutCard} onPress={() => handleAction(item)}>
                       <View style={[styles.shortcutIconBg, { backgroundColor: '#f0f4f8' }]}>
                         {item.iconLib === 'MaterialCommunityIcons' ? (
                           <MaterialCommunityIcons name={item.icon as any} size={24} color={item.color} />
@@ -364,7 +199,6 @@ export default function FamiliaNavalScreen() {
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
-
                 <TouchableOpacity style={styles.cardArrowButton} onPress={() => scrollServicos('right')}>
                   <Ionicons name="chevron-forward" size={20} color="#003366" />
                 </TouchableOpacity>
@@ -375,11 +209,7 @@ export default function FamiliaNavalScreen() {
               <Text style={styles.sectionTitle}>Serviços</Text>
               <View style={styles.gridContainer}>
                 {SOLICITACOES_LIST.map((item, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.gridItem}
-                    onPress={() => handleAction(item)}
-                  >
+                  <TouchableOpacity key={index} style={styles.gridItem} onPress={() => handleAction(item)}>
                     <View style={styles.gridIconBg}>
                       {item.iconLib === 'MaterialCommunityIcons' ? (
                         <MaterialCommunityIcons name={item.icon as any} size={26} color={item.color} />
@@ -402,11 +232,7 @@ export default function FamiliaNavalScreen() {
               </View>
               <View style={styles.gridContainer}>
                 {LINKS_UTEIS_LIST.slice(0, 4).map((item, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.gridItem}
-                    onPress={() => handleAction(item)}
-                  >
+                  <TouchableOpacity key={index} style={styles.gridItem} onPress={() => handleAction(item)}>
                     <View style={styles.gridIconBg}>
                       {item.iconLib === 'MaterialCommunityIcons' ? (
                         <MaterialCommunityIcons name={item.icon as any} size={26} color={item.color} />
@@ -423,45 +249,15 @@ export default function FamiliaNavalScreen() {
         );
 
       case 'solicitacoes':
-        return (
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Todos os Serviços</Text>
-            <Text style={styles.sectionSubtitle}>Selecione o serviço pretendido</Text>
-            <View style={styles.gridTwoColumnsContainer}>
-              {SOLICITACOES_LIST.map((item, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.gridTwoColumnsItem}
-                  onPress={() => handleAction(item)}
-                >
-                  <View style={styles.gridIconBg}>
-                    {item.iconLib === 'MaterialCommunityIcons' ? (
-                      <MaterialCommunityIcons name={item.icon as any} size={28} color={item.color} />
-                    ) : (
-                      <Ionicons name={item.icon as any} size={28} color={item.color} />
-                    )}
-                  </View>
-                  <Text style={styles.gridTwoColumnsText} numberOfLines={2}>
-                    {item.title}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        );
-
       case 'links':
+        const listaAtual = activeTab === 'solicitacoes' ? SOLICITACOES_LIST : LINKS_UTEIS_LIST;
         return (
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Links Úteis da Marinha</Text>
-            <Text style={styles.sectionSubtitle}>Acesse os portais e sistemas externos</Text>
+            <Text style={styles.sectionTitle}>{activeTab === 'solicitacoes' ? 'Todos os Serviços' : 'Links Úteis da Marinha'}</Text>
+            <Text style={styles.sectionSubtitle}>Selecione a opção pretendida</Text>
             <View style={styles.gridTwoColumnsContainer}>
-              {LINKS_UTEIS_LIST.map((item, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.gridTwoColumnsItem}
-                  onPress={() => handleAction(item)}
-                >
+              {listaAtual.map((item, index) => (
+                <TouchableOpacity key={index} style={styles.gridTwoColumnsItem} onPress={() => handleAction(item)}>
                   <View style={styles.gridIconBg}>
                     {item.iconLib === 'MaterialCommunityIcons' ? (
                       <MaterialCommunityIcons name={item.icon as any} size={28} color={item.color} />
@@ -469,9 +265,7 @@ export default function FamiliaNavalScreen() {
                       <Ionicons name={item.icon as any} size={28} color={item.color} />
                     )}
                   </View>
-                  <Text style={styles.gridTwoColumnsText} numberOfLines={2}>
-                    {item.title}
-                  </Text>
+                  <Text style={styles.gridTwoColumnsText} numberOfLines={2}>{item.title}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -508,23 +302,14 @@ export default function FamiliaNavalScreen() {
           <TouchableOpacity style={styles.headerIconBtn} onPress={() => Alert.alert('Notificações', 'Sem novas notificações.')}>
             <Ionicons name="notifications-outline" size={22} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerIconBtn}
-            onPress={() => Alert.alert('Sair', 'Sessão encerrada.')}
-          >
+          <TouchableOpacity style={styles.headerIconBtn} onPress={() => Alert.alert('Sair', 'Sessão encerrada.')}>
             <Ionicons name="log-out-outline" size={22} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.container}>
-        {activeTab === 'pdf-viewer' || activeTab === 'webview' ? (
-          renderContent()
-        ) : (
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            {renderContent()}
-          </ScrollView>
-        )}
+        {activeTab === 'pdf-viewer' || activeTab === 'webview' ? renderContent() : <ScrollView contentContainerStyle={styles.scrollContent}>{renderContent()}</ScrollView>}
       </View>
 
       <Modal visible={drawerVisible} animationType="slide" transparent>
@@ -535,9 +320,7 @@ export default function FamiliaNavalScreen() {
                 <Text style={styles.avatarText}>{avatarInitials}</Text>
               </View>
               <View style={{ marginLeft: 12, flex: 1 }}>
-                <Text style={styles.drawerUserName} numberOfLines={1}>
-                  {nomeDescriptografado}
-                </Text>
+                <Text style={styles.drawerUserName} numberOfLines={1}>{nomeDescriptografado}</Text>
                 <Text style={styles.drawerUserSub}>{dadosVinculo.vinculo}</Text>
               </View>
               <TouchableOpacity onPress={() => setDrawerVisible(false)}>
@@ -546,84 +329,35 @@ export default function FamiliaNavalScreen() {
             </View>
 
             <ScrollView style={{ padding: 16 }}>
-              <TouchableOpacity
-                style={styles.drawerItem}
-                onPress={() => {
-                  setActiveTab('inicio');
-                  setDrawerVisible(false);
-                }}
-              >
+              <TouchableOpacity style={styles.drawerItem} onPress={() => { setActiveTab('inicio'); setDrawerVisible(false); }}>
                 <Ionicons name="home-outline" size={22} color="#003366" style={{ width: 30 }} />
                 <Text style={styles.drawerItemText}>Início</Text>
               </TouchableOpacity>
 
-              <Text style={styles.drawerSectionTitle}>Informações Pessoais</Text>
-              {[
-                { label: 'Meus Dados', icon: 'person-outline', route: 'dados' },
-                { label: 'Meus Dependentes', icon: 'people-outline', route: 'consulta-dependentes' },
-                { label: 'Notificações', icon: 'notifications-outline', action: () => Alert.alert('Notificações', 'Sem novas notificações.') },
-              ].map((item, idx) => (
-                <TouchableOpacity
-                  key={`pessoal-${idx}`}
-                  style={[styles.drawerItem, styles.drawerSubItem]}
-                  onPress={() => {
-                    setDrawerVisible(false);
-                    if (item.action) {
-                      item.action();
-                    } else if (item.route) {
-                      navigation.navigate(item.route);
-                    }
-                  }}
-                >
-                  <Ionicons name={item.icon as any} size={20} color="#003366" style={{ width: 30 }} />
-                  <Text style={styles.drawerSubItemText}>{item.label}</Text>
-                </TouchableOpacity>
-              ))}
-
-              <Text style={styles.drawerSectionTitle}>Informativos</Text>
-              {[
-                { label: 'Carta de Serviço', icon: 'document-text-outline', asset: cartaServicoPdf },
-                { label: 'Bem vindo a Reserva', icon: 'ribbon-outline', asset: bemVindoReservaPdf },
-                { label: 'JVP', icon: 'newspaper-outline', asset: jvpPdf },
-                { label: 'Guia Rapido de Pensão Civil', icon: 'book-outline', asset: pensaoCivilPdf },
-                { label: 'Guia Rapido de Pensão Militar', icon: 'book-outline', asset: pensaoMilitarPdf },
-              ].map((item, idx) => (
-                <TouchableOpacity
-                  key={`info-${idx}`}
-                  style={[styles.drawerItem, styles.drawerSubItem]}
-                  onPress={() => {
-                    setDrawerVisible(false);
-                    handleOpenPdf(item.label, item.asset);
-                  }}
-                >
-                  <Ionicons name={item.icon as any} size={20} color="#003366" style={{ width: 30 }} />
-                  <Text style={styles.drawerSubItemText}>{item.label}</Text>
-                </TouchableOpacity>
-              ))}
-
-              <Text style={styles.drawerSectionTitle}>Mídias Sociais</Text>
-              {[
-                { label: 'Telegram', icon: 'paper-plane-outline', url: 'https://t.me/marinhadobrasil' },
-                { label: 'Canal de Whatsapp', icon: 'logo-whatsapp', url: 'https://whatsapp.com' },
-              ].map((item, idx) => (
-                <TouchableOpacity
-                  key={`social-${idx}`}
-                  style={[styles.drawerItem, styles.drawerSubItem]}
-                  onPress={() => {
-                    setDrawerVisible(false);
-                    handleAction({ title: item.label, url: item.url });
-                  }}
-                >
-                  <Ionicons name={item.icon as any} size={20} color="#003366" style={{ width: 30 }} />
-                  <Text style={styles.drawerSubItemText}>{item.label}</Text>
-                </TouchableOpacity>
+              {SECOES_MENU_LATERAL.map((secao, sIndex) => (
+                <React.Fragment key={`secao-${sIndex}`}>
+                  <Text style={styles.drawerSectionTitle}>{secao.titulo}</Text>
+                  {secao.itens.map((item, idx) => (
+                    <TouchableOpacity
+                      key={`item-${sIndex}-${idx}`}
+                      style={[styles.drawerItem, styles.drawerSubItem]}
+                      onPress={() => {
+                        setDrawerVisible(false);
+                        if (item.chaveAcao === 'notificacoes') Alert.alert('Notificações', 'Sem novas notificações.');
+                        else if (item.rota) navigation.navigate(item.rota);
+                        else if (item.documentoAsset) handleOpenPdf(item.rotulo, item.documentoAsset);
+                        else if (item.urlExterna) handleAction({ title: item.rotulo, url: item.urlExterna });
+                      }}
+                    >
+                      <Ionicons name={item.icone as any} size={20} color="#003366" style={{ width: 30 }} />
+                      <Text style={styles.drawerSubItemText}>{item.rotulo}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </React.Fragment>
               ))}
             </ScrollView>
           </View>
-          <TouchableOpacity
-            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }}
-            onPress={() => setDrawerVisible(false)}
-          />
+          <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} onPress={() => setDrawerVisible(false)} />
         </View>
       </Modal>
 
@@ -637,19 +371,9 @@ export default function FamiliaNavalScreen() {
           ].map((tab) => {
             const isActive = activeTab === tab.key;
             return (
-              <TouchableOpacity
-                key={tab.key}
-                style={styles.bottomBarItem}
-                onPress={() => setActiveTab(tab.key as TabType)}
-              >
-                <Ionicons
-                  name={(isActive ? tab.icon : `${tab.icon}-outline`) as any}
-                  size={22}
-                  color={isActive ? '#003366' : '#666'}
-                />
-                <Text style={[styles.bottomBarText, isActive && styles.bottomBarTextActive]}>
-                  {tab.label}
-                </Text>
+              <TouchableOpacity key={tab.key} style={styles.bottomBarItem} onPress={() => setActiveTab(tab.key as TabType)}>
+                <Ionicons name={(isActive ? tab.icon : `${tab.icon}-outline`) as any} size={22} color={isActive ? '#003366' : '#666'} />
+                <Text style={[styles.bottomBarText, isActive && styles.bottomBarTextActive]}>{tab.label}</Text>
               </TouchableOpacity>
             );
           })}
@@ -678,7 +402,6 @@ const styles = StyleSheet.create({
   welcomeHeader: { flexDirection: 'row', alignItems: 'center' },
   avatarCircle: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#1e4d7a', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#ffffff30' },
   avatarText: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
-  welcomeSubtitle: { color: '#b0c4de', fontSize: 12, marginBottom: 2 },
   welcomeTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   nipText: { color: '#e0e8f0', fontSize: 12, marginTop: 2 },
   sectionContainer: { marginTop: 20, paddingHorizontal: 16 },
