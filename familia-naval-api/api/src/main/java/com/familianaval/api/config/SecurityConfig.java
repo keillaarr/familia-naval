@@ -38,8 +38,8 @@ public class SecurityConfig {
                     "/api/v1/tipoPessoa/**",
                     "/vinculos/**",
                     "/api/v1/vinculos/**",
-                    "/tcc/**",
-                    "/api/v1/tcc/**"
+                    "/ttc/**",
+                    "/api/v1/ttc/**"
                 ).permitAll()
                 .anyRequest().authenticated()
             );

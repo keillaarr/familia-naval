@@ -14,7 +14,7 @@ import com.familianaval.api.module.ttc.dto.ItemOpcaoDTO;
 import com.familianaval.api.module.ttc.dto.SalvarTtcRequestDTO;
 import com.familianaval.api.module.ttc.dto.TtcDadosUsuarioDTO;
 import com.familianaval.api.module.ttc.service.TtcService;
-    
+
 @RestController
 @RequestMapping("/ttc")
 public class TtcController {
@@ -25,17 +25,22 @@ public class TtcController {
         this.ttcService = ttcService;
     }
 
-    @GetMapping("/usuario/{cpf}")
-    public ResponseEntity<TtcDadosUsuarioDTO> obterDadosUsuario(@PathVariable String cpf) {
-        return ttcService.buscarDadosUsuario(cpf)
+    @GetMapping("/usuario/{idPessoa}")
+    public ResponseEntity<TtcDadosUsuarioDTO> obterDadosUsuario(@PathVariable Long idPessoa) {
+        return ttcService.buscarDadosUsuario(idPessoa)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PostMapping("/salvar")
     public ResponseEntity<String> salvarCadastro(@RequestBody SalvarTtcRequestDTO dto) {
-        String mensagem = ttcService.cadastrarOuAtualizarTtc(dto);
-        return ResponseEntity.ok(mensagem);
+        try {
+            String mensagem = ttcService.cadastrarOuAtualizarTtc(dto);
+            return ResponseEntity.ok(mensagem);
+        } catch (Exception e) {
+            e.printStackTrace(); // <--- IMPRIME O ERRO COMPLETO NO TERMINAL DO JAVA
+            return ResponseEntity.status(500).body("Erro interno: " + e.getMessage());
+        }
     }
 
     @PostMapping("/remover-publicacao/{idPessoa}")
@@ -59,8 +64,13 @@ public class TtcController {
         return ResponseEntity.ok(ttcService.listarAssuntos());
     }
 
+    @GetMapping("/oms")
+    public ResponseEntity<List<ItemOpcaoDTO>> listarOrganizacoesMilitares() {
+        return ResponseEntity.ok(ttcService.listarOrganizacoesMilitares());
+    }
+
     @GetMapping("/teste")
-public ResponseEntity<String> teste() {
-    return ResponseEntity.ok("Controller funcionando!");
-}
+    public ResponseEntity<String> teste() {
+        return ResponseEntity.ok("Controller funcionando!");
+    }
 }

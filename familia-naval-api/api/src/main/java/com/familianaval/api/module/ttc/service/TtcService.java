@@ -27,12 +27,55 @@ public class TtcService {
         this.ttcRepository = ttcRepository;
     }
 
-    @Transactional(readOnly = true)
-    public Optional<TtcDadosUsuarioDTO> buscarDadosUsuario(String cpf) {
-        String cpfLimpo = (cpf != null) ? cpf.replaceAll("\\D", "") : "";
+    @Transactional
+    public String removerPublicacao(Long idPessoa) {
+        boolean existe = ttcRepository.existsByIdPessoa(idPessoa);
+        if (!existe) {
+            return "Cadastro não encontrado.";
+        }
 
-        List<Object[]> resultados = ttcRepository.buscarDadosTtcPorCpf(cpfLimpo, cryptoKey);
+        ttcRepository.findByIdPessoa(idPessoa).ifPresent(ttc -> {
+            ttcRepository.deletarAssuntosPorIdTtc(ttc.getId());
+        });
+
+        // Passa "N" (ou null, dependendo da sua regra para removido) para o campo contratado
+        int linhas = ttcRepository.atualizarTtcNativo(
+            idPessoa,
+            null, 
+            "0",  
+            null, 
+            "0",  
+            "N",  // <--- Adicionado o parâmetro contratado
+            null  
+        );
+
+        if (linhas == 0) {
+            ttcRepository.inserirTtcNativo(
+                idPessoa,
+                null,
+                "0",
+                null,
+                "0",
+                "N",  // <--- Adicionado o parâmetro contratado
+                null
+            );
+        }
+
+        return "Publicação removida com sucesso.";
+    }
+    
+    @Transactional(readOnly = true)
+    public Optional<TtcDadosUsuarioDTO> buscarDadosUsuario(Long idPessoa) {
+        if (idPessoa == null) {
+            System.out.println("=== [DEBUG GET] idPessoa veio NULO ===");
+            return Optional.empty();
+        }
+
+        System.out.println("=== [DEBUG GET] Buscando dados do TTC para idPessoa: " + idPessoa + " ===");
+
+        List<Object[]> resultados = ttcRepository.buscarDadosTtcPorIdPessoa(idPessoa, cryptoKey);
         if (resultados == null || resultados.isEmpty()) {
+            System.out.println("=== [DEBUG GET] Nenhum registro encontrado na query para idPessoa: " + idPessoa + " ===");
             return Optional.empty();
         }
 
@@ -52,11 +95,10 @@ public class TtcService {
             }
         }
 
-        String posto = (String) row[5];
+        String om = (String) row[5];
         String nomeCompleto = (String) row[6];
         String vinculo = (String) row[7];
         
-        // Tratamento seguro e flexível para o aceitouTermo
         Character aceitouTermo = '0';
         Object aceitouTermoObj = row[8];
         if (aceitouTermoObj != null) {
@@ -72,54 +114,76 @@ public class TtcService {
 
         String outrasInfo = (String) row[9];
         Long idArea = row[10] != null ? ((Number) row[10]).longValue() : null;
+        
+        // Pega a OM pretendida cadastrada no banco (posição 11 do SELECT)
+        Long omPretendidaId = (row.length > 11 && row[11] != null) ? ((Number) row[11]).longValue() : null;
 
         String primeiroNome = (nomeCompleto != null && !nomeCompleto.isBlank()) 
                 ? nomeCompleto.trim().split("\\s+")[0] 
                 : "Usuário";
 
         List<Integer> comandosDecodificados = decodificarComandosBitmask(comandoBitmask);
-        List<Long> assuntos = List.of(); 
+        List<Long> assuntos = ttcRepository.buscarIdsAssuntosPorIdTtc(idTtc); 
+
+        System.out.println("=== [DEBUG GET] Dados encontrados! OM Pretendida ID: " + omPretendidaId + " | Comandos: " + comandosDecodificados + " | Assuntos: " + assuntos + " ===");
 
         return Optional.of(new TtcDadosUsuarioDTO(
-            idTtc, nip, primeiroNome, posto, vinculo, status, 
-            aceitouTermo, outrasInfo, comandosDecodificados, idArea, dtAtualizacao, assuntos
+            idTtc, nip, primeiroNome, om, vinculo, status, 
+            aceitouTermo, outrasInfo, comandosDecodificados, idArea, dtAtualizacao, assuntos, omPretendidaId
         ));
     }
 
     @Transactional
     public String cadastrarOuAtualizarTtc(SalvarTtcRequestDTO dto) {
-        Long idPessoaLong = dto.idPessoa();
+        System.out.println("=== [DEBUG] Assuntos recebidos no DTO: " + dto.assuntos() + " ===");
+        System.out.println("=== [DEBUG] Comandos/Distritos recebidos no DTO: " + dto.comandoServir() + " ===");
 
-        Ttc ttc = ttcRepository.findByIdPessoa(idPessoaLong)
-                .orElseGet(() -> {
-                    Ttc novoTtc = new Ttc();
-                    novoTtc.setIdPessoa(idPessoaLong);
-                    return novoTtc;
-                });
+        Integer comandoBitmask = 0;
+        if (dto.comandoServir() != null && !dto.comandoServir().isEmpty()) {
+            for (Integer idDistrito : dto.comandoServir()) {
+                if (idDistrito >= 1 && idDistrito <= 9) {
+                    comandoBitmask |= (1 << (9 - idDistrito));
+                }
+            }
+        }
 
-        ttc.setDataUltimaAtualizacao(LocalDate.now());
-        ttc.setOutrasInformacoes(dto.infoComplementar());
-        ttc.setAtivo("1");
-        ttc.setComandosServir(dto.comandoServir());
-        ttc.setAceitouTermo(true); // Alterado para Boolean true
-        ttc.setContratado(null);
-        ttc.setOmPretendidaId(dto.omPretendidaId());
+        // Define 'N' para a coluna contratado ao salvar/atualizar
+        String statusContratado = "N";
 
-        ttcRepository.save(ttc);
+        int linhasAfetadas = ttcRepository.atualizarTtcNativo(
+            dto.idPessoa(),
+            dto.infoComplementar(),
+            "1",
+            comandoBitmask,
+            "1",
+            statusContratado, // Passa 'N' aqui
+            dto.omPretendidaId()
+        );
+
+        if (linhasAfetadas == 0) {
+            ttcRepository.inserirTtcNativo(
+                dto.idPessoa(),
+                dto.infoComplementar(),
+                "1",
+                comandoBitmask,
+                "1",
+                statusContratado, // Passa 'N' aqui
+                dto.omPretendidaId()
+            );
+        }
+
+        Long idTtc = ttcRepository.findByIdPessoa(dto.idPessoa())
+                .map(Ttc::getId)
+                .orElseThrow(() -> new RuntimeException("Erro ao localizar registro TTC para sincronizar áreas de interesse."));
+
+        ttcRepository.deletarAssuntosPorIdTtc(idTtc);
+        if (dto.assuntos() != null && !dto.assuntos().isEmpty()) {
+            for (Long idAssunto : dto.assuntos()) {
+                ttcRepository.inserirAssuntoUsuario(idAssunto, idTtc);
+            }
+        }
 
         return "Cadastro de TTC salvo e publicado com sucesso.";
-    }
-
-    @Transactional
-    public String removerPublicacao(Long idPessoa) {
-        return ttcRepository.findByIdPessoa(idPessoa)
-                .map(ttc -> {
-                    ttc.setAtivo("0");
-                    ttc.setAceitouTermo(false); // Alterado para Boolean false
-                    ttcRepository.save(ttc);
-                    return "Publicação removida com sucesso.";
-                })
-                .orElse("Cadastro não encontrado.");
     }
 
     @Transactional(readOnly = true)
@@ -158,6 +222,20 @@ public class TtcService {
             Long id = ((Number) row[0]).longValue();
             String nome = (String) row[1];
             lista.add(new ItemOpcaoDTO(id, nome));
+        }
+        return lista;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ItemOpcaoDTO> listarOrganizacoesMilitares() {
+        List<Object[]> resultados = ttcRepository.buscarOrganizacoesMilitares();
+        List<ItemOpcaoDTO> lista = new ArrayList<>();
+        for (Object[] row : resultados) {
+            Long id = ((Number) row[0]).longValue();
+            String sigla = (String) row[1];
+            String nome = (String) row[2];
+            String rotulo = (sigla != null && !sigla.isBlank()) ? sigla + " - " + nome : nome;
+            lista.add(new ItemOpcaoDTO(id, rotulo));
         }
         return lista;
     }

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -18,358 +19,459 @@ import { useAuth } from '../hooks/useAuth';
 const API_BASE_URL = 'http://10.0.2.2:8080/api/v1';
 
 const todosDistritos = [
-  'COM1DN',
-  'COM2DN',
-  'COM3DN',
-  'COM4DN',
-  'COM5DN',
-  'COM6DN',
-  'COM7DN',
-  'COM8DN',
-  'COM9DN',
+  'COM1DN', 'COM2DN', 'COM3DN', 'COM4DN', 'COM5DN',
+  'COM6DN', 'COM7DN', 'COM8DN', 'COM9DN',
 ];
 
-const categorias = [
+const categoriasEstaticas = [
   {
     titulo: 'Administração/Intendência',
     itens: [
-      'Administração em Geral',
-      'Administração de Produção',
-      'Administração de Setores Específicos (Gastronomia)',
-      'Administração de Setores Específicos (Hotelaria)',
-      'Administração de Setores Específicos (Hospitalar)',
-      'Auditoria',
-      'Ciência e Tecnologia de Alimentos',
-      'Contabilidade',
-      'Cozinheiro',
-      'Direito em Geral',
-      'Direito Financeiro',
-      'Direito Aplicado a Atributos',
-      'Escrevente',
-      'Estatística',
-      'Gestão de Conhecimentos',
-      'Gestão de Projetos',
-      'Gestão Pública',
-      'Intendência',
-      'Logística Material',
-      'Paiol',
-      'Secretaria',
-      'Barbearia',
-      'Parceria Pública-Privada',
-      'Direito Aplicado a Patrimônio',
-      'Negociação',
-      'Modelagem em Processos',
-      'Licitações e Contratos',
-      'Economia',
+      { id: 1, nome: 'Administração em Geral' },
+      { id: 2, nome: 'Administração de Produção' },
+      { id: 3, nome: 'Administração de Setores Específicos (Gastronomia)' },
+      { id: 4, nome: 'Administração de Setores Específicos (Hotelaria)' },
+      { id: 5, nome: 'Administração de Setores Específicos (Hospitalar)' },
+      { id: 6, nome: 'Auditoria' },
+      { id: 7, nome: 'Ciência e Tecnologia de Alimentos' },
+      { id: 8, nome: 'Contabilidade' },
+      { id: 9, nome: 'Cozinheiro' },
+      { id: 10, nome: 'Direito em Geral' },
+      { id: 11, nome: 'Direito Financeiro' },
+      { id: 12, nome: 'Direito Aplicado a Atributos' },
+      { id: 13, nome: 'Escrevente' },
+      { id: 14, nome: 'Estatística' },
+      { id: 15, nome: 'Gestão de Conhecimentos' },
+      { id: 16, nome: 'Gestão de Projetos' },
+      { id: 17, nome: 'Gestão Pública' },
+      { id: 18, nome: 'Intendência' },
+      { id: 19, nome: 'Logística Material' },
+      { id: 20, nome: 'Paiol' },
+      { id: 21, nome: 'Secretaria' },
+      { id: 22, nome: 'Barbearia' },
+      { id: 23, nome: 'Parceria Pública-Privada' },
+      { id: 24, nome: 'Direito Aplicado a Patrimônio' },
+      { id: 25, nome: 'Negociação' },
+      { id: 26, nome: 'Modelagem em Processos' },
+      { id: 27, nome: 'Licitações e Contratos' },
+      { id: 28, nome: 'Economia' },
     ],
   },
   {
     titulo: 'Mecânica e Elétrica',
     itens: [
-      'Eletricidade',
-      'Eletrônica',
-      'Mecânica',
-      'Mecatrônica',
-      'Metalurgia',
-      'Refrigeração',
-      'Funilaria',
+      { id: 29, nome: 'Eletricidade' },
+      { id: 30, nome: 'Eletrônica' },
+      { id: 31, nome: 'Mecânica' },
+      { id: 32, nome: 'Mecatrônica' },
+      { id: 33, nome: 'Metalurgia' },
+      { id: 34, nome: 'Refrigeração' },
+      { id: 35, nome: 'Funilaria' },
     ],
   },
   {
     titulo: 'Assistência Social',
-    itens: ['Serviço Social', 'Teologia'],
+    itens: [
+      { id: 36, nome: 'Serviço Social' },
+      { id: 37, nome: 'Teologia' },
+    ],
   },
   {
     titulo: 'Assuntos Marítimos',
     itens: [
-      'Assuntos Marítimos e Portuários',
-      'Direito Marítimo',
-      'Segurança do Tráfego Aquaviário',
-      'Tecnologia em Sistemas de Navegação',
+      { id: 38, nome: 'Assuntos Marítimos e Portuários' },
+      { id: 39, nome: 'Direito Marítimo' },
+      { id: 40, nome: 'Segurança do Tráfego Aquaviário' },
+      { id: 41, nome: 'Tecnologia em Sistemas de Navegação' },
     ],
   },
   {
     titulo: 'Engenharia Naval',
     itens: [
-      'Desenho Industrial',
-      'Eletrotécnica',
-      'Engenharia de Materiais e Metalúrgica',
-      'Engenharia de Produção',
-      'Engenharia Industrial',
-      'Engenharia Mecânica',
-      'Engenharia Mecatrônica',
-      'Engenharia Naval',
-      'Engenharia Nuclear',
-      'Engenharia Química',
-      'Estruturas Navais',
-      'Máquinas e Motores',
-      'Mecânica e Marcenaria',
+      { id: 42, nome: 'Desenho Industrial' },
+      { id: 43, nome: 'Eletrotécnica' },
+      { id: 44, nome: 'Engenharia de Materiais e Metalúrgica' },
+      { id: 45, nome: 'Engenharia de Produção' },
+      { id: 46, nome: 'Engenharia Industrial' },
+      { id: 47, nome: 'Engenharia Mecânica' },
+      { id: 48, nome: 'Engenharia Mecatrônica' },
+      { id: 49, nome: 'Engenharia Naval' },
+      { id: 50, nome: 'Engenharia Nuclear' },
+      { id: 51, nome: 'Engenharia Química' },
+      { id: 52, nome: 'Estruturas Navais' },
+      { id: 53, nome: 'Máquinas e Motores' },
+      { id: 54, nome: 'Mecânica e Marcenaria' },
     ],
   },
   {
     titulo: 'Informática',
     itens: [
-      'Ciência da Computação',
-      'Computação Gráfica',
-      'Criptografia',
-      'Engenharia de Computação',
-      'Engenharia de Software',
-      'Guerra Cibernética',
-      'Redes de Computadores',
-      'Segurança da Informação',
-      'Governança de TI',
-      'Programação',
-      'Programação PHP',
-      'Programação JAVA',
-      'Telecomunicações',
-      'Webdesign',
-      'Banco de Dados',
+      { id: 55, nome: 'Ciência da Computação' },
+      { id: 56, nome: 'Computação Gráfica' },
+      { id: 57, nome: 'Criptografia' },
+      { id: 58, nome: 'Engenharia de Computação' },
+      { id: 59, nome: 'Engenharia de Software' },
+      { id: 60, nome: 'Guerra Cibernética' },
+      { id: 61, nome: 'Redes de Computadores' },
+      { id: 62, nome: 'Segurança da Informação' },
+      { id: 63, nome: 'Governança de TI' },
+      { id: 64, nome: 'Programação' },
+      { id: 65, nome: 'Programação PHP' },
+      { id: 66, nome: 'Programação JAVA' },
+      { id: 67, nome: 'Telecomunicações' },
+      { id: 68, nome: 'Webdesign' },
+      { id: 69, nome: 'Banco de Dados' },
     ],
   },
   {
     titulo: 'Ensino',
     itens: [
-      'Ciências Biológicas',
-      'Ensino Técnico-Profissional',
-      'Educação Física',
-      'Física',
-      'História',
-      'Geografia',
-      'Liderança',
-      'Matemática',
-      'Pedagogia',
-      'Psicologia (Exceto Área Clínica)',
-      'Redação',
-      'Redação de Textos Acadêmicos',
-      'Seleção de Pessoal',
-      'Tradução Simultânea',
-      'Tradução Literária',
-      'Letras',
-      'Tecnologia Educacional',
+      { id: 70, nome: 'Ciências Biológicas' },
+      { id: 71, nome: 'Ensino Técnico-Profissional' },
+      { id: 72, nome: 'Educação Física' },
+      { id: 73, nome: 'Física' },
+      { id: 74, nome: 'História' },
+      { id: 75, nome: 'Geografia' },
+      { id: 76, nome: 'Liderança' },
+      { id: 77, nome: 'Matemática' },
+      { id: 78, nome: 'Pedagogia' },
+      { id: 79, nome: 'Psicologia (Exceto Área Clínica)' },
+      { id: 80, nome: 'Redação' },
+      { id: 81, nome: 'Redação de Textos Acadêmicos' },
+      { id: 82, nome: 'Seleção de Pessoal' },
+      { id: 83, nome: 'Tradução Simultânea' },
+      { id: 84, nome: 'Tradução Literária' },
+      { id: 85, nome: 'Letras' },
+      { id: 86, nome: 'Tecnologia Educacional' },
     ],
   },
   {
     titulo: 'Estudos Militares',
-    itens: ['Estado Maior', 'Inteligência', 'Política e Estratégia'],
+    itens: [
+      { id: 87, nome: 'Estado Maior' },
+      { id: 88, nome: 'Inteligência' },
+      { id: 89, nome: 'Política e Estratégia' },
+    ],
   },
   {
     titulo: 'Fuzileiros Navais',
     itens: [
-      'Armamento',
-      'Artilharia',
-      'Comunicações',
-      'Condução de Viatura Militar',
-      'Defesa QBN em Ambiente Terrestre',
-      'Engenharia Militar',
-      'Guerra Anfíbia',
-      'Mecânica de Carros de Combate',
-      'Segurança de Áreas e Instalações',
-      'Segurança Pessoal',
-      'Máquinas e Motores do CFN',
+      { id: 90, nome: 'Armamento' },
+      { id: 91, nome: 'Artilharia' },
+      { id: 92, nome: 'Comunicações' },
+      { id: 93, nome: 'Condução de Viatura Militar' },
+      { id: 94, nome: 'Defesa QBN em Ambiente Terrestre' },
+      { id: 95, nome: 'Engenharia Militar' },
+      { id: 96, nome: 'Guerra Anfíbia' },
+      { id: 97, nome: 'Mecânica de Carros de Combate' },
+      { id: 98, nome: 'Segurança de Áreas e Instalações' },
+      { id: 99, nome: 'Segurança Pessoal' },
+      { id: 100, nome: 'Máquinas e Motores do CFN' },
     ],
   },
   {
     titulo: 'Hidrografia, Navegação e Comunicações Navais',
     itens: [
-      'Artes Gráficas',
-      'Cartografia',
-      'Geofísica e Geologia',
-      'Hidrografia',
-      'Navegação',
-      'Oceanografia Física',
-      'Sinalização Náutica',
-      'Sensoriamento Remoto',
-      'Comunicações Navais',
-      'Comunicações Interiores',
+      { id: 101, nome: 'Artes Gráficas' },
+      { id: 102, nome: 'Cartografia' },
+      { id: 103, nome: 'Geofísica e Geologia' },
+      { id: 104, nome: 'Hidrografia' },
+      { id: 105, nome: 'Navegação' },
+      { id: 106, nome: 'Oceanografia Física' },
+      { id: 107, nome: 'Sinalização Náutica' },
+      { id: 108, nome: 'Sensoriamento Remoto' },
+      { id: 109, nome: 'Comunicações Navais' },
+      { id: 110, nome: 'Comunicações Interiores' },
     ],
   },
   {
     titulo: 'Obras',
     itens: [
-      'Arquitetura e Urbanismo',
-      'Engenharia',
-      'Engenharia Costeira e Portuária',
-      'Engenharia Sanitária',
-      'Marcenaria',
-      'Carpintaria',
-      'Hidráulica',
-      'Elétrica',
-      'Reforma e Pintura',
-      'Jardinagem',
-      'Serralheria',
+      { id: 111, nome: 'Arquitetura e Urbanismo' },
+      { id: 112, nome: 'Engenharia' },
+      { id: 113, nome: 'Engenharia Costeira e Portuária' },
+      { id: 114, nome: 'Engenharia Sanitária' },
+      { id: 115, nome: 'Marcenaria' },
+      { id: 116, nome: 'Carpintaria' },
+      { id: 117, nome: 'Hidráulica' },
+      { id: 118, nome: 'Elétrica' },
+      { id: 119, nome: 'Reforma e Pintura' },
+      { id: 120, nome: 'Jardinagem' },
+      { id: 121, nome: 'Serralheria' },
     ],
   },
   {
     titulo: 'Operações Navais e Sistemas de Armas',
     itens: [
-      'Guerra Eletrônica',
-      'Manobras, Reparos e Sinais',
-      'Mergulho',
-      'Operador de Drone',
-      'Controle Naval do Tráfego Marítimo',
-      'Análise de Imagens Aplicadas à Inteligência Operacional',
-      'Direção de Tiro',
-      'Operador de Radar',
-      'Operador de Sonar',
-      'Sistema de Armas',
-      'Sistema de Armas: Armamento',
-      'Sistema de Armas: Eletrônica',
-      'Sistema de Armas: Mecatrônica',
-      'Sistema de Armas: Química',
-      'Sistema de Armas: Potência Pulsada',
-      'Adestramento',
+      { id: 122, nome: 'Guerra Eletrônica' },
+      { id: 123, nome: 'Manobras, Reparos e Sinais' },
+      { id: 124, nome: 'Mergulho' },
+      { id: 125, nome: 'Operador de Drone' },
+      { id: 126, nome: 'Controle Naval do Tráfego Marítimo' },
+      { id: 127, nome: 'Análise de Imagens Aplicadas à Inteligência Operacional' },
+      { id: 128, nome: 'Direção de Tiro' },
+      { id: 129, nome: 'Operador de Radar' },
+      { id: 130, nome: 'Operador de Sonar' },
+      { id: 131, nome: 'Sistema de Armas' },
+      { id: 132, nome: 'Sistema de Armas: Armamento' },
+      { id: 133, nome: 'Sistema de Armas: Eletrônica' },
+      { id: 134, nome: 'Sistema de Armas: Mecatrônica' },
+      { id: 135, nome: 'Sistema de Armas: Química' },
+      { id: 136, nome: 'Sistema de Armas: Potência Pulsada' },
+      { id: 137, nome: 'Adestramento' },
     ],
   },
   {
     titulo: 'Patrimônio Histórico e Cultural',
     itens: [
-      'Arqueologia',
-      'Arquivologia e Gestão de Documentos',
-      'Biblioteconomia',
-      'Museologia',
-      'História',
+      { id: 138, nome: 'Arqueologia' },
+      { id: 139, nome: 'Arquivologia e Gestão de Documentos' },
+      { id: 140, nome: 'Biblioteconomia' },
+      { id: 141, nome: 'Museologia' },
+      { id: 142, nome: 'História' },
     ],
   },
   {
     titulo: 'Saúde',
     itens: [
-      'Biologia (Área Médica)',
-      'Enfermagem',
-      'Farmácia',
-      'Fisioterapia',
-      'Fonoaudiologia',
-      'Medicina',
-      'Medicina Veterinária',
-      'Nutrição',
-      'Odontologia',
-      'Psicologia (Área Clínica)',
-      'Terapia Ocupacional',
-      'Prótese',
-      'Psiquiatria',
+      { id: 143, nome: 'Biologia (Área Médica)' },
+      { id: 144, nome: 'Enfermagem' },
+      { id: 145, nome: 'Farmácia' },
+      { id: 146, nome: 'Fisioterapia' },
+      { id: 147, nome: 'Fonoaudiologia' },
+      { id: 148, nome: 'Medicina' },
+      { id: 149, nome: 'Medicina Veterinária' },
+      { id: 150, nome: 'Nutrição' },
+      { id: 151, nome: 'Odontologia' },
+      { id: 152, nome: 'Psicologia (Área Clínica)' },
+      { id: 153, nome: 'Terapia Ocupacional' },
+      { id: 154, nome: 'Prótese' },
+      { id: 155, nome: 'Psiquiatria' },
     ],
   },
   {
     titulo: 'Defesa Nacional',
     itens: [
-      'Ciência Política',
-      'Direito Aplicado às Operações Militares',
-      'Direito Internacional Humanitário',
-      'Direito Internacional Público',
-      'Doutrina de Comando e Controle',
-      'Doutrinas Marítima e Naval',
-      'Economia e Indústria de Defesa',
-      'Estratégia, Estratégia Marítima e Estratégia Naval',
-      'Estudo de Operações Militares',
-      'Geopolítica',
-      'Gestão Estratégica',
-      'Jogos de Guerra e de Crise',
-      'Logística Militar Naval',
-      'Planejamento Estratégico de Defesa',
-      'Planejamento Militar',
-      'Políticas de Defesa Nacional, Marítima Nacional e Naval',
-      'Processo de Tomada de Decisão',
-      'Relações Internacionais',
+      { id: 156, nome: 'Ciência Política' },
+      { id: 157, nome: 'Direito Aplicado às Operações Militares' },
+      { id: 158, nome: 'Direito Internacional Humanitário' },
+      { id: 159, nome: 'Direito Internacional Público' },
+      { id: 160, nome: 'Doutrina de Comando e Controle' },
+      { id: 161, nome: 'Doutrinas Marítima e Naval' },
+      { id: 162, nome: 'Economia e Indústria de Defesa' },
+      { id: 163, nome: 'Estratégia, Estratégia Marítima e Estratégia Naval' },
+      { id: 164, nome: 'Estudo de Operações Militares' },
+      { id: 165, nome: 'Geopolítica' },
+      { id: 166, nome: 'Gestão Estratégica' },
+      { id: 167, nome: 'Jogos de Guerra e de Crise' },
+      { id: 168, nome: 'Logística Militar Naval' },
+      { id: 169, nome: 'Planejamento Estratégico de Defesa' },
+      { id: 170, nome: 'Planejamento Militar' },
+      { id: 171, nome: 'Políticas de Defesa Nacional, Marítima Nacional e Naval' },
+      { id: 172, nome: 'Processo de Tomada de Decisão' },
+      { id: 173, nome: 'Relações Internacionais' },
     ],
   },
   {
     titulo: 'Multidisciplinar',
-    itens: ['Gestão Ambiental', 'Comunicação Social', 'Atendimento ao Público'],
+    itens: [
+      { id: 174, nome: 'Gestão Ambiental' },
+      { id: 175, nome: 'Comunicação Social' },
+      { id: 176, nome: 'Atendimento ao Público' },
+    ],
   },
   {
     titulo: 'Ciência, Tecnologia e Inovação',
     itens: [
-      'Acústica Submarina',
-      'Biotecnologia Marinha',
-      'Ciência Ambiental',
-      'Controle e Automação',
-      'Ecologia Marinha',
-      'Engenharia de Produção Aplicada a Pesquisa Operacional e Gestão da Inovação',
-      'Engenharia Oceânica',
-      'Engenharia Submarina',
-      'Ergonomia',
-      'Física',
-      'Matemática Aplicada',
-      'Metrologia e Qualidade',
-      'Nanotecnologia',
-      'Oceanografia Química, Biológica e Acústica',
-      'Pesquisa e Desenvolvimento de Materiais',
-      'Processos Decisórios',
-      'Propriedade Intelectual',
-      'Sistemas Inerciais',
+      { id: 177, nome: 'Acústica Submarina' },
+      { id: 178, nome: 'Biotecnologia Marinha' },
+      { id: 179, nome: 'Ciência Ambiental' },
+      { id: 180, nome: 'Controle e Automação' },
+      { id: 181, nome: 'Ecologia Marinha' },
+      { id: 182, nome: 'Engenharia de Produção Aplicada a Pesquisa Operacional e Gestão da Inovação' },
+      { id: 183, nome: 'Engenharia Oceânica' },
+      { id: 184, nome: 'Engenharia Submarina' },
+      { id: 185, nome: 'Ergonomia' },
+      { id: 186, nome: 'Física' },
+      { id: 187, nome: 'Matemática Aplicada' },
+      { id: 188, nome: 'Metrologia e Qualidade' },
+      { id: 189, nome: 'Nanotecnologia' },
+      { id: 190, nome: 'Oceanografia Química, Biológica e Acústica' },
+      { id: 191, nome: 'Pesquisa e Desenvolvimento de Materiais' },
+      { id: 192, nome: 'Processos Decisórios' },
+      { id: 193, nome: 'Propriedade Intelectual' },
+      { id: 194, nome: 'Sistemas Inerciais' },
     ],
   },
   {
     titulo: 'Pessoal',
     itens: [
-      'Gestão de Pessoal Civil',
-      'Gestão de Pessoal Militar',
-      'Identificação',
+      { id: 195, nome: 'Gestão de Pessoal Civil' },
+      { id: 196, nome: 'Gestão de Pessoal Militar' },
+      { id: 197, nome: 'Identificação' },
     ],
   },
 ];
+
+interface ItemOpcao {
+  id: number;
+  nome: string;
+  sigla?: string;
+}
 
 export default function CadastroTTCScreen() {
   const { usuario } = useAuth();
   const [enviando, setEnviando] = useState(false);
   const [textoLivre, setTextoLivre] = useState('');
-  const [omDesejada, setOmDesejada] = useState('');
+
+  const [listaOms, setListaOms] = useState<ItemOpcao[]>([]);
+  const [omDesejadaId, setOmDesejadaId] = useState<number | null>(null);
+  const [modalOmVisivel, setModalOmVisivel] = useState(false);
+  const [buscaOm, setBuscaOm] = useState('');
+
   const [distritosSelecionados, setDistritosSelecionados] = useState<string[]>([]);
-  const [assuntosSelecionados, setAssuntosSelecionados] = useState<string[]>([]);
+  const [assuntosSelecionadosIds, setAssuntosSelecionadosIds] = useState<number[]>([]);
   const [categoriasAbertas, setCategoriasAbertas] = useState<Record<string, boolean>>({});
 
-  const cpfReal = usuario?.cpf || usuario?.pessoa?.cpfPessoa || '';
+  const idPessoaReal = usuario?.idPessoa || usuario?.pessoa?.idPessoa || '325607';
 
-  useEffect(() => {
-    async function buscarCadastroExistente() {
-      if (!cpfReal) return;
-      try {
-        const response = await fetch(`${API_BASE_URL}/cadastro-ttc/${cpfReal}`, {
+  async function carregarDadosIniciais() {
+    try {
+      let omsLocal: ItemOpcao[] = [];
+      const resOms = await fetch(`${API_BASE_URL}/ttc/oms`, { credentials: 'include' });
+      if (resOms.ok) {
+        omsLocal = await resOms.json();
+        setListaOms(omsLocal);
+      }
+
+      if (idPessoaReal) {
+        const response = await fetch(`${API_BASE_URL}/ttc/usuario/${idPessoaReal}`, {
           credentials: 'include',
         });
+
         if (response.ok) {
           const data = await response.json();
+          
           if (data) {
-            setDistritosSelecionados(data.distritos || []);
-            setOmDesejada(data.omDesejada || '');
-            setAssuntosSelecionados(data.assuntos || []);
-            setTextoLivre(data.informacoesComplementares || '');
+            setTextoLivre(
+              data.outrasInformacoes ||
+              data.outrasinformacoes ||
+              data.infoComplementar ||
+              ''
+            );
+
+            const rawOmId =
+              data.omPretendidaId ??
+              data.om_pretendida_id ??
+              data.omId ??
+              data.idOmPretendida;
+
+            const parsedOmId = Number(rawOmId);
+            if (!isNaN(parsedOmId) && parsedOmId > 0) {
+              setOmDesejadaId(parsedOmId);
+            } else {
+              setOmDesejadaId(null);
+            }
+
+            const rawComando =
+              data.comando ??
+              data.comandosDecodificados ??
+              data.comandosServir ??
+              data.ComandosServir ??
+              data.distrito;
+
+            let idsComandos: number[] = [];
+            if (Array.isArray(rawComando)) {
+              idsComandos = rawComando.map(Number);
+            } else if (rawComando !== undefined && rawComando !== null) {
+              const num = Number(rawComando);
+              if (!isNaN(num)) idsComandos = [num];
+            }
+
+            const distritosMapeados: string[] = [];
+            idsComandos.forEach((id) => {
+              if (id >= 1 && id <= todosDistritos.length) {
+                distritosMapeados.push(todosDistritos[id - 1]);
+              }
+            });
+            setDistritosSelecionados(distritosMapeados);
+
+            const assuntosSalvos =
+              data.ids_areas_interesse ||
+              data.assuntosUsuario ||
+              data.assuntos ||
+              [];
+
+            if (Array.isArray(assuntosSalvos) && assuntosSalvos.length > 0) {
+              setAssuntosSelecionadosIds(assuntosSalvos.map(Number));
+            } else {
+              setAssuntosSelecionadosIds([]);
+            }
           }
         }
-      } catch (e) {
-        console.error('Erro ao carregar cadastro TTC:', e);
       }
+    } catch (e) {
+      console.error('Erro ao carregar dados iniciais:', e);
     }
-    buscarCadastroExistente();
-  }, [cpfReal]);
+  }
+
+  useEffect(() => {
+    carregarDadosIniciais();
+  }, [idPessoaReal]);
 
   const toggleCategoria = (titulo: string) => {
     setCategoriasAbertas((prev) => ({ ...prev, [titulo]: !prev[titulo] }));
   };
 
-  const adicionarOuRemoverDistrito = (item: string) => {
+  const toggleDistrito = (item: string) => {
     setDistritosSelecionados((prev) =>
       prev.includes(item) ? prev.filter((d) => d !== item) : [...prev, item]
     );
   };
 
-  const toggleAssunto = (item: string) => {
-    setAssuntosSelecionados((prev) =>
-      prev.includes(item) ? prev.filter((a) => a !== item) : [...prev, item]
+  const toggleAssunto = (id: number) => {
+    setAssuntosSelecionadosIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
+
+  const omSelecionadaObj = listaOms.find((o) => Number(o.id) === Number(omDesejadaId));
+  const omsFiltradas = listaOms.filter(
+    (om) =>
+      om.nome.toLowerCase().includes(buscaOm.toLowerCase()) ||
+      (om.sigla && om.sigla.toLowerCase().includes(buscaOm.toLowerCase()))
+  );
 
   const handleSalvar = async () => {
     setEnviando(true);
     try {
-      const payload = {
-        cpf: cpfReal,
-        distritos: distritosSelecionados,
-        omDesejada: omDesejada,
-        assuntos: assuntosSelecionados,
-        informacoesComplementares: textoLivre,
+      const mapaDistritos: Record<string, number> = {
+        'COM1DN': 1,
+        'COM2DN': 2,
+        'COM3DN': 3,
+        'COM4DN': 4,
+        'COM5DN': 5,
+        'COM6DN': 6,
+        'COM7DN': 7,
+        'COM8DN': 8,
+        'COM9DN': 9,
       };
 
-      const response = await fetch(`${API_BASE_URL}/cadastro-ttc`, {
+      const idsComandos = distritosSelecionados.map((dist) => {
+        return mapaDistritos[dist] || 1;
+      });
+
+      const payload = {
+        idPessoa: Number(idPessoaReal),
+        comandoServir: idsComandos,
+        comandosServir: idsComandos,
+        comando: idsComandos,
+        infoComplementar: textoLivre,
+        omPretendidaId: omDesejadaId ? Number(omDesejadaId) : null,
+        assuntos: assuntosSelecionadosIds,
+      };
+
+      const response = await fetch(`${API_BASE_URL}/ttc/salvar`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -379,10 +481,13 @@ export default function CadastroTTCScreen() {
       });
 
       if (!response.ok) {
+        const erroTexto = await response.text();
+        console.error('Erro retornado pela API:', erroTexto);
         throw new Error('Falha ao salvar cadastro TTC.');
       }
 
       Alert.alert('Sucesso', 'Requerimento TTC salvo e publicado com sucesso!');
+      await carregarDadosIniciais(); 
     } catch (error) {
       console.error(error);
       Alert.alert('Erro', 'Não foi possível concluir a publicação.');
@@ -402,17 +507,14 @@ export default function CadastroTTCScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              if (cpfReal) {
-                await fetch(`${API_BASE_URL}/cadastro-ttc/${cpfReal}`, {
-                  method: 'DELETE',
+              if (idPessoaReal) {
+                await fetch(`${API_BASE_URL}/ttc/remover-publicacao/${idPessoaReal}`, {
+                  method: 'POST',
                   credentials: 'include',
                 });
               }
-              setDistritosSelecionados([]);
-              setOmDesejada('');
-              setAssuntosSelecionados([]);
-              setTextoLivre('');
               Alert.alert('Removido', 'Cadastro despublicado.');
+              await carregarDadosIniciais(); 
             } catch (e) {
               Alert.alert('Erro', 'Não foi possível remover a publicação.');
             }
@@ -421,10 +523,6 @@ export default function CadastroTTCScreen() {
       ]
     );
   };
-
-  const distritosDisponiveis = todosDistritos.filter(
-    (d) => !distritosSelecionados.includes(d)
-  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -451,63 +549,54 @@ export default function CadastroTTCScreen() {
           </Text>
         </View>
 
-        <Text style={styles.sectionTitle}>Distritos Navais Desejados</Text>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Distritos Navais Desejados (Comandos a Servir)</Text>
+          <Text style={styles.counterBadge}>{distritosSelecionados.length} selecionados</Text>
+        </View>
         <View style={styles.card}>
-          {distritosSelecionados.length > 0 && (
-            <View style={{ marginBottom: 14 }}>
-              <Text style={styles.subLabel}>Selecionados ({distritosSelecionados.length})</Text>
-              <View style={styles.chipsWrap}>
-                {distritosSelecionados.map((item) => (
-                  <TouchableOpacity
-                    key={`sel-${item}`}
-                    style={[styles.chipItem, styles.chipSelecionado]}
-                    onPress={() => adicionarOuRemoverDistrito(item)}
-                  >
-                    <Text style={styles.chipTextoSelecionado}>{item}</Text>
-                    <Ionicons name="close" size={14} color="#FFF" style={{ marginLeft: 4 }} />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
-
-          <Text style={styles.subLabel}>
-            {distritosSelecionados.length > 0 ? 'Adicionar mais distritos:' : 'Toque para selecionar:'}
-          </Text>
+          <Text style={styles.subLabel}>Selecione um ou mais distritos:</Text>
           <View style={styles.chipsWrap}>
-            {distritosDisponiveis.map((item) => (
-              <TouchableOpacity
-                key={`disponivel-${item}`}
-                style={[styles.chipItem, styles.chipDisponivel]}
-                onPress={() => adicionarOuRemoverDistrito(item)}
-              >
-                <Text style={styles.chipTextoDisponivel}>{item}</Text>
-                <Ionicons name="add" size={14} color={COLORS.primary} style={{ marginLeft: 4 }} />
-              </TouchableOpacity>
-            ))}
+            {todosDistritos.map((item) => {
+              const selecionado = distritosSelecionados.includes(item);
+              return (
+                <TouchableOpacity
+                  key={`distrito-${item}`}
+                  style={[styles.chipItem, selecionado ? styles.chipSelecionado : styles.chipDisponivel]}
+                  onPress={() => toggleDistrito(item)}
+                >
+                  <Text style={selecionado ? styles.chipTextoSelecionado : styles.chipTextoDisponivel}>{item}</Text>
+                  {selecionado && <Ionicons name="checkmark" size={14} color="#FFF" style={{ marginLeft: 4 }} />}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
-        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Organização Militar (OM) Desejada</Text>
-        <View style={styles.card}>
-          <TextInput
-            placeholder="Ex: BNRJ, AMRJ, Com1ºDN..."
-            placeholderTextColor="#999"
-            style={styles.inputSingle}
-            value={omDesejada}
-            onChangeText={setOmDesejada}
-          />
-        </View>
+        {/* Título atualizado com (Opcional) */}
+        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>OM Desejada (Opcional)</Text>
+        <TouchableOpacity
+          style={styles.seletorOmCard}
+          onPress={() => setModalOmVisivel(true)}
+          activeOpacity={0.7}
+        >
+          <View style={{ flex: 1, paddingRight: 8 }}>
+            <Text style={styles.seletorLabel}>OM Pretendida (Opcional)</Text>
+            <Text style={[styles.seletorValor, !omSelecionadaObj && styles.seletorPlaceholder]} numberOfLines={1}>
+              {omSelecionadaObj ? omSelecionadaObj.nome : 'Selecione uma Organização Militar...'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={COLORS.primary} />
+        </TouchableOpacity>
 
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Áreas de Interesse</Text>
-          <Text style={styles.counterBadge}>{assuntosSelecionados.length} selecionados</Text>
+          <Text style={styles.counterBadge}>{assuntosSelecionadosIds.length} selecionados</Text>
         </View>
 
-        {categorias.map((categoria) => {
+        {categoriasEstaticas.map((categoria) => {
           const aberta = categoriasAbertas[categoria.titulo] ?? false;
           const selecionadosNaCat = categoria.itens.filter((i) =>
-            assuntosSelecionados.includes(i)
+            assuntosSelecionadosIds.includes(i.id)
           ).length;
 
           return (
@@ -535,13 +624,13 @@ export default function CadastroTTCScreen() {
 
               {aberta && (
                 <View style={styles.cardCategoria}>
-                  {categoria.itens.map((item) => {
-                    const selecionado = assuntosSelecionados.includes(item);
+                  {categoria.itens.map((subItem) => {
+                    const selecionado = assuntosSelecionadosIds.includes(subItem.id);
                     return (
                       <TouchableOpacity
-                        key={item}
+                        key={`sub-${subItem.id}`}
                         style={[styles.checkboxItem, selecionado && styles.checkboxItemActive]}
-                        onPress={() => toggleAssunto(item)}
+                        onPress={() => toggleAssunto(subItem.id)}
                         activeOpacity={0.7}
                       >
                         <Ionicons
@@ -551,7 +640,7 @@ export default function CadastroTTCScreen() {
                           style={{ marginRight: 10 }}
                         />
                         <Text style={[styles.checkboxTexto, selecionado && { fontWeight: '700', color: COLORS.primary }]}>
-                          {item}
+                          {subItem.nome}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -600,6 +689,74 @@ export default function CadastroTTCScreen() {
           <Text style={styles.botaoRemoverTexto}>Remover Publicação</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <Modal visible={modalOmVisivel} animationType="slide" transparent>
+        <SafeAreaView style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Selecionar OM Desejada</Text>
+              <TouchableOpacity onPress={() => setModalOmVisivel(false)}>
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.buscaBox}>
+              <Ionicons name="search" size={18} color="#999" style={{ marginRight: 8 }} />
+              <TextInput
+                placeholder="Pesquisar por sigla ou nome..."
+                placeholderTextColor="#999"
+                style={styles.inputBusca}
+                value={buscaOm}
+                onChangeText={setBuscaOm}
+              />
+              {buscaOm.length > 0 && (
+                <TouchableOpacity onPress={() => setBuscaOm('')}>
+                  <Ionicons name="close-circle" size={18} color="#999" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <ScrollView style={{ marginTop: 10 }}>
+              <TouchableOpacity
+                style={[styles.omOptionItem, !omDesejadaId && styles.omOptionItemActive]}
+                onPress={() => {
+                  setOmDesejadaId(null);
+                  setModalOmVisivel(false);
+                  setBuscaOm('');
+                }}
+              >
+                <Text style={[styles.omOptionTexto, !omDesejadaId && styles.omOptionTextoActive]}>
+                  Nenhuma (Opcional)
+                </Text>
+                {!omDesejadaId && <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />}
+              </TouchableOpacity>
+
+              {omsFiltradas.map((om) => {
+                const selecionada = Number(omDesejadaId) === Number(om.id);
+                return (
+                  <TouchableOpacity
+                    key={`modal-om-${om.id}`}
+                    style={[styles.omOptionItem, selecionada && styles.omOptionItemActive]}
+                    onPress={() => {
+                      setOmDesejadaId(om.id);
+                      setModalOmVisivel(false);
+                      setBuscaOm('');
+                    }}
+                  >
+                    <Text style={[styles.omOptionTexto, selecionada && styles.omOptionTextoActive]}>
+                      {om.nome}
+                    </Text>
+                    {selecionada && <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />}
+                  </TouchableOpacity>
+                );
+              })}
+              {omsFiltradas.length === 0 && (
+                <Text style={styles.emptyText}>Nenhuma Organização Militar encontrada.</Text>
+              )}
+            </ScrollView>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -632,7 +789,23 @@ const styles = StyleSheet.create({
   counterBadge: { backgroundColor: '#E2E8F0', color: COLORS.textMuted, fontSize: 11, fontWeight: '600', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   card: { backgroundColor: COLORS.white, borderColor: COLORS.border, borderRadius: 16, borderWidth: 1, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, padding: 16 },
   subLabel: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600', marginBottom: 8 },
-  inputSingle: { backgroundColor: '#F8F9FA', borderColor: COLORS.borderLight, borderRadius: 10, borderWidth: 1, color: COLORS.text, fontSize: 14, height: 48, paddingHorizontal: 12 },
+
+  seletorOmCard: {
+    backgroundColor: COLORS.white,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    elevation: 1,
+  },
+  seletorLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '600', marginBottom: 2 },
+  seletorValor: { color: COLORS.primary, fontSize: 14, fontWeight: 'bold' },
+  seletorPlaceholder: { color: '#999', fontWeight: 'normal' },
+
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chipItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1 },
   chipDisponivel: { backgroundColor: COLORS.white, borderColor: COLORS.border },
@@ -652,6 +825,18 @@ const styles = StyleSheet.create({
   textArea: { backgroundColor: '#F8F9FA', borderColor: COLORS.borderLight, borderRadius: 10, borderWidth: 1, color: COLORS.text, fontSize: 14, minHeight: 110, padding: 12, textAlignVertical: 'top' },
   botaoSalvar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.success, borderRadius: 12, marginTop: 24, padding: 16, elevation: 2 },
   botaoSalvarTexto: { color: COLORS.white, fontSize: 15, fontWeight: 'bold' },
-  botaoRemover: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFEBEE', borderWidth: 1, borderColor: '#FFCDD2', borderRadius: 12, marginTop: 12, padding: 14 },
+  botaoRemover: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFEBEE', borderColor: '#FFCDD2', borderWidth: 1, borderRadius: 12, marginTop: 12, padding: 14 },
   botaoRemoverTexto: { color: COLORS.danger, fontSize: 14, fontWeight: 'bold' },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: COLORS.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%', padding: 20 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.primary },
+  buscaBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F0F4F8', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: COLORS.border },
+  inputBusca: { flex: 1, fontSize: 14, color: COLORS.text },
+  omOptionItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: COLORS.borderLight },
+  omOptionItemActive: { backgroundColor: COLORS.primaryLight },
+  omOptionTexto: { fontSize: 14, color: COLORS.text, flex: 1, marginRight: 8 },
+  omOptionTextoActive: { color: COLORS.primary, fontWeight: 'bold' },
+  emptyText: { textAlign: 'center', color: COLORS.textMuted, marginVertical: 20, fontSize: 14 },
 });

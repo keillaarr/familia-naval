@@ -24,7 +24,7 @@ export const PRINCIPAIS_SERVICOS_LIST = [
     icon: 'shield-check-outline',
     iconLib: 'MaterialCommunityIcons',
     color: '#003366',
-    route: 'prova-de-vida',
+    url: 'https://www.gov.br/pt-br'
   },
   {
     title: 'Declaração Anual Para Percepção Do Auxílio-Invalidez',

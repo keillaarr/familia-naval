@@ -20,9 +20,9 @@ public class Dependente {
     private String nomeDep;
 
     private String cpf;
-    private String naturalidade;
-    private Integer nacionalidade;
+
     private String parentesco;
+
     private String dependencia;
 
     @Column(name = "dt_nas_dep")
@@ -34,15 +34,12 @@ public class Dependente {
     @Column(name = "e_civ_dep")
     private Integer eCivDep;
 
-    private String mae;
-    private String pai;
 
     @Column(name = "dt_prim_concessao")
     private String dtPrimConcessao;
 
     private String concedido;
-    private String motivoconcessao;
-    private String motivosuspensao;
+
 
     @Column(name = "dt_ult_situacao")
     private String dtUltSituacao;
@@ -50,7 +47,7 @@ public class Dependente {
     @Column(name = "boletim_ult_situacao")
     private Integer boletimUltSituacao;
 
-    private String filiacao;
+
 
     // Getters e Setters
     public String getNipTit() { return nipTit; }
