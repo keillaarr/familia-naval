@@ -2,8 +2,8 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Asset } from 'expo-asset';
 import React, { useEffect, useRef, useState } from 'react';
-import Pdf from 'react-native-pdf';
 import { WebView } from 'react-native-webview';
+import PdfViewer from '../../components/PdfViewer';
 
 import {
   Alert,
@@ -281,11 +281,7 @@ export default function FamiliaNavalScreen() {
               <Text style={styles.pdfHeaderTitle} numberOfLines={1}>{currentPdfTitle}</Text>
             </View>
             {currentPdfUrl ? (
-              <Pdf
-                source={{ uri: currentPdfUrl, cache: true }}
-                trustAllCerts={false}
-                style={styles.pdfView}
-              />
+              <PdfViewer uri={currentPdfUrl} style={styles.pdfView} />
             ) : (
               <Text style={{ textAlign: 'center', marginTop: 20 }}>Nenhum PDF selecionado.</Text>
             )}
