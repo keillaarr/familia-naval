@@ -1,5 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { router } from 'expo-router';
 import { Asset } from 'expo-asset';
 import React, { useEffect, useRef, useState } from 'react';
 import { WebView } from 'react-native-webview';
@@ -7,7 +8,6 @@ import PdfViewer from '../components/PdfViewer';
 
 import {
   Alert,
-  Dimensions,
   Modal,
   Platform,
   SafeAreaView,
@@ -23,7 +23,6 @@ import { LINKS_UTEIS_LIST, PRINCIPAIS_SERVICOS_LIST, SOLICITACOES_LIST } from '.
 import { SECOES_MENU_LATERAL } from '../constants/menu_inicial';
 import { useAuth } from '../hooks/useAuth';
 
-const { width } = Dimensions.get('window');
 const API_BASE_URL = 'http://10.0.2.2:8080/api/v1';
 
 type TabType = 'inicio' | 'solicitacoes' | 'links' | 'perfil' | 'pdf-viewer' | 'webview';
@@ -34,6 +33,7 @@ export default function FamiliaNavalScreen() {
   
   const [activeTab, setActiveTab] = useState<TabType>('inicio');
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const [logoutConfirmationVisible, setLogoutConfirmationVisible] = useState(false);
   const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null);
   const [currentPdfTitle, setCurrentPdfTitle] = useState<string>('Documento PDF');
 
@@ -91,6 +91,15 @@ export default function FamiliaNavalScreen() {
   };
 
   const avatarInitials = getInitials(nomeDescriptografado);
+
+  const confirmarSaida = () => {
+    setLogoutConfirmationVisible(true);
+  };
+
+  const sairDaConta = () => {
+    setLogoutConfirmationVisible(false);
+    router.replace('/login');
+  };
 
   const scrollServicos = (direction: 'left' | 'right') => {
     const cardWidth = 138;
@@ -302,7 +311,7 @@ export default function FamiliaNavalScreen() {
           <TouchableOpacity style={styles.headerIconBtn} onPress={() => Alert.alert('Notificações', 'Sem novas notificações.')}>
             <Ionicons name="notifications-outline" size={22} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconBtn} onPress={() => Alert.alert('Sair', 'Sessão encerrada.')}>
+          <TouchableOpacity style={styles.headerIconBtn} onPress={confirmarSaida}>
             <Ionicons name="log-out-outline" size={22} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -361,6 +370,35 @@ export default function FamiliaNavalScreen() {
         </View>
       </Modal>
 
+      <Modal
+        visible={logoutConfirmationVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setLogoutConfirmationVisible(false)}
+      >
+        <View style={styles.logoutModalOverlay}>
+          <View style={styles.logoutModal}>
+            <Text style={styles.logoutModalTitle}>Deseja sair da sua conta?</Text>
+            <View style={styles.logoutModalActions}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                style={[styles.logoutModalButton, styles.logoutCancelButton]}
+                onPress={() => setLogoutConfirmationVisible(false)}
+              >
+                <Text style={styles.logoutCancelText}>NÃO</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
+                style={[styles.logoutModalButton, styles.logoutConfirmButton]}
+                onPress={sairDaConta}
+              >
+                <Text style={styles.logoutConfirmText}>SIM</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {activeTab !== 'pdf-viewer' && activeTab !== 'webview' && (
         <View style={styles.bottomBar}>
           {[
@@ -410,21 +448,30 @@ const styles = StyleSheet.create({
   sectionSubtitle: { fontSize: 12, color: '#666', marginBottom: 12 },
   seeAllText: { color: '#003366', fontWeight: '600', fontSize: 13 },
   carouselWrapper: { flexDirection: 'row', alignItems: 'center' },
-  cardArrowButton: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  cardArrowButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center', zIndex: 2 },
   horizontalScroll: { paddingHorizontal: 8 },
   shortcutCard: { width: 126, backgroundColor: '#fff', borderRadius: 14, padding: 10, marginHorizontal: 6, alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
   shortcutIconBg: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   shortcutText: { fontSize: 11, fontWeight: '600', color: '#333', textAlign: 'center', lineHeight: 14 },
-  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  gridItem: { width: (width - 44) / 3, backgroundColor: '#fff', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 6, alignItems: 'center', marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
+  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' },
+  gridItem: { width: '100%', maxWidth: 560, minHeight: 128, alignSelf: 'center', backgroundColor: '#fff', borderRadius: 14, paddingVertical: 18, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
   gridTwoColumnsContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  gridTwoColumnsItem: { width: (width - 40) / 2, backgroundColor: '#fff', borderRadius: 16, paddingVertical: 18, paddingHorizontal: 12, alignItems: 'center', marginBottom: 14, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
+  gridTwoColumnsItem: { width: '48%', maxWidth: 280, backgroundColor: '#fff', borderRadius: 16, paddingVertical: 18, paddingHorizontal: 12, alignItems: 'center', marginBottom: 14, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
   gridTwoColumnsText: { fontSize: 12.5, fontWeight: '600', color: '#333', textAlign: 'center', lineHeight: 16, marginTop: 8 },
   gridIconBg: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#f0f4f8', alignItems: 'center', justifyContent: 'center' },
-  gridText: { fontSize: 10.5, fontWeight: '500', color: '#333', textAlign: 'center', lineHeight: 14 },
+  gridText: { fontSize: 12, fontWeight: '500', color: '#333', textAlign: 'center', lineHeight: 16, marginTop: 8 },
   tabPlaceholderContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#f5f7fa' },
   tabPlaceholderTitle: { fontSize: 18, fontWeight: 'bold', color: '#003366', marginTop: 12 },
   tabPlaceholderSub: { fontSize: 13, color: '#666', textAlign: 'center', marginTop: 6 },
+  logoutModalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: 'rgba(0,0,0,0.45)' },
+  logoutModal: { width: '100%', maxWidth: 360, borderRadius: 16, padding: 24, backgroundColor: '#fff', elevation: 10 },
+  logoutModalTitle: { color: '#222', fontSize: 18, fontWeight: '600', textAlign: 'center' },
+  logoutModalActions: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
+  logoutModalButton: { minWidth: 112, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8, marginHorizontal: 6 },
+  logoutCancelButton: { backgroundColor: '#e8edf2' },
+  logoutConfirmButton: { backgroundColor: '#003366' },
+  logoutCancelText: { color: '#003366', fontSize: 14, fontWeight: '700' },
+  logoutConfirmText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   modalOverlay: { flex: 1, flexDirection: 'row' },
   drawerContainer: { width: '75%', maxWidth: 320, backgroundColor: '#fff', height: '100%', elevation: 10 },
   drawerHeader: { backgroundColor: '#003366', padding: 20, paddingTop: 45, flexDirection: 'row', alignItems: 'center' },
